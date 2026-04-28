@@ -14,33 +14,32 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
   const [viewerCount, setViewerCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Link Stream dari VPS lo
   const STREAM_URL = "http://141.11.25.59:8000/live";
 
   useEffect(() => {
-    // 1. Ambil Branding dari Setting
+    // 1. Branding Dinamis
     fetch("/api/settings").then(res => res.json()).then(json => {
       if (json.success && json.data) setBranding({ siteName: json.data.siteName });
     });
 
-    // 2. Load Data Radio berdasarkan slug
+    // 2. Load Data Radio
     const fetchRadio = async () => {
         const res = await fetch(`/api/radio?slug=${params.slug}`);
         const json = await res.json();
         if (json.success) {
             setRadioData(json.data);
-            setViewerCount(json.data.listeners || 0); // Ambil data awal dari DB
+            setViewerCount(json.data.listeners || 0);
         }
         setIsLoaded(true);
     };
     fetchRadio();
   }, [params.slug]);
 
-  // 3. Heartbeat Logic (Viewer Count)
+  // 3. Heartbeat Logic - Fix Error 400
   useEffect(() => {
-    if (!radioData || !isPlaying) return;
+    // Pastikan radioData sudah ada dan sedang playing sebelum kirim heartbeat
+    if (!radioData || !isPlaying || !radioData.id) return;
 
-    // Bikin identifier unik buat user ini (simpan di browser)
     let viewerId = localStorage.getItem("vs_viewer_id");
     if (!viewerId) {
         viewerId = "viewer_" + Math.random().toString(36).substring(2, 11);
@@ -54,19 +53,18 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     identifier: viewerId,
-                    channelId: radioData.id, // Pakai ID (angka), bukan slug
+                    channelId: Number(radioData.id), // Pastikan ini angka
                     channelType: "radio"
                 })
             });
             const json = await res.json();
-            if (json.success) setViewerCount(json.viewers); // Update angka viewer di UI
-        } catch (e) { console.error("Heartbeat fail"); }
+            if (json.success) setViewerCount(json.viewers);
+        } catch (e) {
+            console.error("Heartbeat sync failed");
+        }
     };
 
-    // Kirim pertama kali saat play
     sendHeartbeat();
-
-    // Kirim tiap 30 detik selama lagu diputar
     const interval = setInterval(sendHeartbeat, 30000);
     return () => clearInterval(interval);
   }, [radioData, isPlaying]);
@@ -77,7 +75,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
       else {
         audioRef.current.load();
         audioRef.current.play().catch(() => {
-          alert("Sinyal studio sedang offline.");
+          alert("OFFLINE: Sinyal studio belum aktif.");
           setIsPlaying(false);
         });
       }
@@ -95,77 +93,82 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
     <div className="min-h-screen bg-[#080808] text-white selection:bg-accent relative overflow-hidden font-sans">
       <Navbar />
       
-      {/* Spotify Gradient Background */}
+      {/* Spotify Immersive Background */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-accent/20 via-[#080808] to-[#080808]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-accent/25 via-[#080808] to-[#080808]" />
         {radioData?.thumbnail && (
           <motion.img 
-            initial={{ opacity: 0 }} animate={{ opacity: 0.15 }}
-            src={radioData.thumbnail} className="w-full h-full object-cover blur-[150px] scale-150" 
+            initial={{ opacity: 0 }} animate={{ opacity: 0.2 }}
+            src={radioData.thumbnail} className="w-full h-full object-cover blur-[140px] scale-150" 
           />
         )}
       </div>
 
-      <main className="relative z-10 container mx-auto px-6 lg:px-20 pt-28 pb-10">
-        <div className="flex flex-col lg:flex-row items-center lg:items-end gap-10 lg:gap-14">
+      <main className="relative z-10 container mx-auto px-6 lg:px-24 pt-32 pb-10">
+        <div className="flex flex-col lg:flex-row items-center lg:items-end gap-12">
           
-          {/* Artwork */}
+          {/* Artwork - Spotify Style */}
           <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="relative"
           >
-            <div className={`absolute -inset-10 bg-accent/20 rounded-full blur-[100px] transition-all duration-1000 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
-            <div className="w-64 h-64 md:w-80 md:h-80 bg-zinc-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl relative z-10">
+            <div className={`absolute -inset-10 bg-accent/20 rounded-full blur-[120px] transition-all duration-1000 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
+            <div className="w-64 h-64 md:w-80 md:h-80 bg-zinc-900 border border-white/5 rounded-none overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] relative z-10">
               {radioData?.thumbnail ? (
-                <img src={radioData.thumbnail} className={`w-full h-full object-cover transition-transform duration-[20s] linear infinite ${isPlaying ? 'scale-110 rotate-2' : 'scale-100'}`} alt="" />
+                <img src={radioData.thumbnail} className={`w-full h-full object-cover transition-transform duration-[15s] linear infinite ${isPlaying ? 'scale-110' : 'scale-100'}`} alt="" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-zinc-950"><Disc size={100} className="text-zinc-800" /></div>
               )}
             </div>
           </motion.div>
 
-          {/* Identity - Clean & Spotify Look */}
-          <div className="flex flex-col gap-4 text-center lg:text-left">
-            <motion.span 
-              initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-              className="text-[10px] font-black uppercase tracking-[0.4em] text-accent flex items-center justify-center lg:justify-start gap-2"
+          {/* Identity Section - Ultra Clean */}
+          <div className="flex flex-col gap-6 text-center lg:text-left">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="flex items-center justify-center lg:justify-start gap-2"
             >
-              <Activity size={12} className="animate-pulse" /> Live Now
-            </motion.span>
+              <Activity size={14} className="text-accent animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-accent">Live Broadcast</span>
+            </motion.div>
             
             <motion.h1 
-              initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-              className="text-6xl md:text-[120px] font-black tracking-[-0.05em] uppercase leading-none italic"
+              initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}
+              className="text-6xl md:text-[110px] font-black tracking-[-0.05em] uppercase leading-[0.8] italic"
             >
               {radioData?.name}
             </motion.h1>
             
-            <div className="flex items-center justify-center lg:justify-start gap-6 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+              className="flex items-center justify-center lg:justify-start gap-6 text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em]"
+            >
               <div className="flex items-center gap-2">
                 <Users size={14} className="text-accent" />
-                <span>{viewerCount.toLocaleString()} Listeners</span>
+                <span className="text-white">{viewerCount.toLocaleString()}</span>
+                <span>Listeners</span>
               </div>
-              <span className="w-1 h-1 bg-zinc-700 rounded-full" />
-              <span>{branding.siteName} Digital Stream</span>
-            </div>
+              <span className="w-1 h-1 bg-zinc-800 rounded-full" />
+              <span>{branding.siteName}</span>
+            </motion.div>
           </div>
         </div>
 
-        {/* Player Controls - Tighter & Responsive */}
-        <div className="mt-12 flex items-center justify-center lg:justify-start gap-8">
+        {/* Player Controls - Tighter Layout */}
+        <div className="mt-14 flex items-center justify-center lg:justify-start gap-10">
           <button 
             onClick={togglePlay}
-            className="w-20 h-20 rounded-full bg-accent text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl shadow-accent/40"
+            className="w-20 h-20 rounded-full bg-accent text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-accent/40 group"
           >
             {isPlaying ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" className="ml-1" />}
           </button>
           
-          <button className="p-4 rounded-full bg-white/5 border border-white/5 text-zinc-400 hover:text-white transition-all">
+          <button className="p-4 rounded-full bg-white/5 border border-white/5 text-zinc-400 hover:text-white transition-all shadow-lg hover:bg-white/10">
             <Share2 size={24} />
           </button>
 
-          <div className="hidden md:flex items-center gap-4 w-52 ml-4">
-            <Volume2 size={18} className="text-zinc-500" />
+          <div className="hidden md:flex items-center gap-4 w-56 ml-6">
+            <Volume2 size={20} className="text-zinc-600" />
             <input 
               type="range" min="0" max="100" value={volume} 
               onChange={(e) => {
@@ -175,6 +178,11 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
               className="flex-1 accent-accent bg-white/5 h-1 appearance-none cursor-pointer rounded-full" 
             />
           </div>
+        </div>
+
+        {/* Bottom Section - Clean Slate */}
+        <div className="mt-24 border-t border-white/5 pt-10">
+           <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-800 text-center lg:text-left">Studio Stream Secured // 44.1kHz</p>
         </div>
       </main>
 
