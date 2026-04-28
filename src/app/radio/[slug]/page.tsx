@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-// FIXED: Menambahkan 'Activity' ke dalam import
 import { Play, Pause, Volume2, Radio, Share2, Heart, Users, Music2, Disc, Activity } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
@@ -10,27 +9,26 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
   const [volume, setVolume] = useState(80);
   const [radioData, setRadioData] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [branding, setBranding] = useState({ siteName: "VisionStream" });
+  const [branding, setBranding] = useState({ siteName: "" });
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const STREAM_URL = "http://141.11.25.59:8000/live";
 
   useEffect(() => {
-    // Load Branding secara dinamis dari API Settings
+    // Ambil Branding secara dinamis
     fetch("/api/settings")
       .then(res => res.json())
       .then(json => {
         if (json.success && json.data) setBranding({ siteName: json.data.siteName });
       });
 
-    // Load Data Radio berdasarkan slug
     const fetchData = async () => {
       try {
         const res = await fetch(`/api/radio?slug=${params.slug}`);
         const json = await res.json();
         if (json.success) setRadioData(json.data);
       } catch (error) {
-        console.error("Gagal load data radio");
+        console.error("Fetch error");
       } finally {
         setIsLoaded(true);
       }
@@ -43,7 +41,6 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        // Melakukan load ulang stream agar tidak delay (audio live)
         audioRef.current.load();
         audioRef.current.play().catch(() => {
           alert("STREAM OFFLINE: Pastikan stasiun pusat sudah melakukan 'Go On-Air'.");
@@ -56,83 +53,80 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
 
   if (!isLoaded) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6">
-      <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-      <p className="text-accent font-black uppercase tracking-[0.5em] text-[10px]">{branding.siteName.toUpperCase()} LOADING...</p>
+      <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  if (!radioData) return <div className="min-h-screen bg-black flex items-center justify-center text-accent uppercase font-black tracking-widest">Station Not Found</div>;
+  if (!radioData) return <div className="min-h-screen bg-black flex items-center justify-center text-accent font-black uppercase tracking-widest">404 STATION NOT FOUND</div>;
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-accent selection:text-white">
       <Navbar />
       
-      {/* Spotify Industrial Layout */}
+      {/* Spotify Industrial View */}
       <div className="relative pt-32 pb-12 px-6 md:px-16 overflow-hidden">
-        {/* Dynamic Background Blur - Ambil warna dari Logo */}
         <div className="absolute inset-0 z-0">
           {radioData.logoUrl ? (
             <img src={radioData.logoUrl} className="w-full h-full object-cover opacity-20 blur-[120px] scale-150" alt="" />
           ) : (
-            <div className="w-full h-full bg-accent/10 blur-[100px]" />
+            <div className="w-full h-full bg-accent/5 blur-[100px]" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/90 to-transparent" />
         </div>
 
         <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-10">
-          {/* Cover Art Section */}
-          <div className="relative group">
-            <div className={`absolute -inset-6 bg-accent/20 rounded-full blur-3xl transition-all duration-1000 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
-            <div className="w-64 h-64 md:w-80 md:h-80 bg-surface border border-white/10 rounded-none overflow-hidden shadow-2xl relative z-10 flex items-center justify-center">
+          <div className="relative">
+            <div className={`absolute -inset-8 bg-accent/10 rounded-full blur-3xl transition-all duration-1000 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
+            <div className="w-64 h-64 md:w-80 md:h-80 bg-surface border border-white/5 rounded-none overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] relative z-10 flex items-center justify-center">
               {radioData.logoUrl ? (
                 <img 
                   src={radioData.logoUrl} 
                   className={`w-full h-full object-cover transition-transform duration-[10s] ${isPlaying ? 'scale-110' : 'scale-100'}`} 
-                  alt={radioData.name} 
+                  alt="" 
                 />
               ) : (
-                <Disc size={120} className={`text-accent/20 ${isPlaying ? 'animate-spin-slow' : ''}`} />
+                <Disc size={100} className={`text-accent/10 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '8s' }} />
               )}
             </div>
           </div>
           
-          {/* Station Identity */}
-          <div className="flex flex-col gap-5 text-center md:text-left">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent">
-              Live Broadcast // {radioData.category?.name || "Digital"}
-            </span>
-            <h1 className="text-6xl md:text-9xl font-black tracking-tighter uppercase leading-none italic">
+          <div className="flex flex-col gap-6 text-center md:text-left">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent">Broadcast Live // {branding.siteName}</span>
+            <h1 className="text-6xl md:text-[120px] font-black tracking-[ -0.05em] uppercase leading-[0.8] italic">
               {radioData.name}
             </h1>
-            <div className="flex items-center justify-center md:justify-start gap-4 text-zinc-500 text-xs font-bold uppercase tracking-widest">
-              <Users size={14} className="text-accent" />
-              <span>1,242 Listeners</span>
-              <span className="w-1.5 h-1.5 bg-zinc-800 rounded-full" />
-              <Activity size={14} />
-              <span>128 Kbps</span>
+            <div className="flex items-center justify-center md:justify-start gap-5 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+              <div className="flex items-center gap-2">
+                <Users size={12} className="text-accent" />
+                <span>1,242</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Activity size={12} />
+                <span>128 KBPS</span>
+              </div>
+              <span className="text-white/20">Node: JKT-01</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Control Bar Section */}
-      <div className="sticky top-[70px] z-30 bg-[#050505]/90 backdrop-blur-xl border-y border-white/5 px-6 md:px-16 py-6 flex items-center justify-between">
-        <div className="flex items-center gap-8">
+      {/* Industrial Controller Bar */}
+      <div className="sticky top-[70px] z-30 bg-[#050505]/95 backdrop-blur-2xl border-y border-white/5 px-6 md:px-16 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-10">
           <button 
             onClick={togglePlay}
             className="w-16 h-16 rounded-full bg-accent text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-accent/40"
           >
-            {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
+            {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
           </button>
-          <div className="flex items-center gap-6 text-zinc-500">
-             <Heart size={24} className="hover:text-accent cursor-pointer transition-colors" />
-             <Share2 size={24} className="hover:text-white cursor-pointer transition-colors" />
+          <div className="flex items-center gap-6 text-zinc-600">
+             <Heart size={22} className="hover:text-accent cursor-pointer transition-colors" />
+             <Share2 size={22} className="hover:text-white cursor-pointer transition-colors" />
           </div>
         </div>
 
-        {/* Volume Control */}
-        <div className="hidden md:flex items-center gap-4 w-64 group">
-          <Volume2 size={20} className="text-zinc-500 group-hover:text-accent transition-colors" />
+        <div className="hidden md:flex items-center gap-4 w-64">
+          <Volume2 size={18} className="text-zinc-600" />
           <input 
             type="range" 
             min="0" 
@@ -142,39 +136,28 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
               setVolume(parseInt(e.target.value));
               if(audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100;
             }}
-            className="flex-1 accent-accent bg-white/10 h-1 appearance-none cursor-pointer"
+            className="flex-1 accent-accent bg-white/5 h-0.5 appearance-none cursor-pointer"
           />
         </div>
       </div>
 
-      {/* Secondary Content Section (Spotify Look) */}
-      <main className="px-6 md:px-16 py-20 max-w-7xl">
-         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-10">Broadcast Sessions</h3>
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* List item simulasi arsip siaran */}
-            <div className="p-6 bg-white/5 border border-white/5 flex items-center gap-6 hover:bg-white/10 transition-all group cursor-pointer">
-               <div className="w-12 h-12 bg-accent/20 flex items-center justify-center text-accent font-black">01</div>
-               <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-white">Digital Radio Morning Show</p>
-                  <p className="text-[9px] text-zinc-600 uppercase font-bold mt-1 tracking-tighter">Live Recording // Current Session</p>
-               </div>
-            </div>
-            <div className="p-6 bg-white/5 border border-white/5 flex items-center gap-6 hover:bg-white/10 transition-all group cursor-pointer opacity-50">
-               <div className="w-12 h-12 bg-white/10 flex items-center justify-center text-zinc-600 font-black">02</div>
-               <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-zinc-600">Archived Stream Session</p>
-                  <p className="text-[9px] text-zinc-800 uppercase font-bold mt-1 tracking-tighter">System Backup // 2026</p>
-               </div>
-            </div>
+      <main className="px-6 md:px-16 py-20">
+         <div className="flex items-center gap-4 mb-10">
+            <div className="h-px flex-1 bg-white/5" />
+            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700">Studio Session Logs</h3>
+            <div className="h-px flex-1 bg-white/5" />
+         </div>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-8 bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-all group cursor-not-allowed">
+                 <p className="text-[10px] font-black text-zinc-600 uppercase mb-2">Session 0{i}</p>
+                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-tight">Broadcast Archived</p>
+              </div>
+            ))}
          </div>
       </main>
 
       <audio ref={audioRef} src={STREAM_URL} preload="none" crossOrigin="anonymous" />
-      
-      <style jsx>{`
-        .animate-spin-slow { animation: spin 8s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }
