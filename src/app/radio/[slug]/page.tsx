@@ -9,7 +9,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
   const [volume, setVolume] = useState(80);
   const [radioData, setRadioData] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [branding, setBranding] = useState({ siteName: "" });
+  const [branding, setBranding] = useState({ siteName: "SYSTEM" });
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const STREAM_URL = "http://141.11.25.59:8000/live";
@@ -27,7 +27,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
         const json = await res.json();
         if (json.success) setRadioData(json.data);
       } catch (error) {
-        console.error("Fetch error");
+        console.error("Fetch failure");
       } finally {
         setIsLoaded(true);
       }
@@ -42,7 +42,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
       } else {
         audioRef.current.load();
         audioRef.current.play().catch(() => {
-          alert("OFFLINE: Sinyal belum diterima dari studio pusat.");
+          alert("STATION OFFLINE: Sinyal belum diterima dari studio.");
           setIsPlaying(false);
         });
       }
@@ -52,14 +52,14 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
 
   if (!isLoaded) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  if (!radioData) return <div className="min-h-screen bg-black flex items-center justify-center text-accent uppercase font-black tracking-widest text-[10px]">Station Null</div>;
+  if (!radioData) return <div className="min-h-screen bg-black flex items-center justify-center text-accent uppercase font-black text-[10px]">Station Null</div>;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-accent selection:text-white">
+    <div className="min-h-screen bg-[#050505] text-white selection:bg-accent">
       <Navbar />
       
       <div className="relative pt-32 pb-12 px-6 md:px-16 overflow-hidden">
@@ -79,17 +79,17 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
               {radioData.logoUrl ? (
                 <img src={radioData.logoUrl} className={`w-full h-full object-cover ${isPlaying ? 'scale-110' : 'scale-100'} transition-transform duration-[10s]`} alt="" />
               ) : (
-                <Disc size={80} className={`text-accent/10 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '10s' }} />
+                <Disc size={60} className={`text-accent/5 ${isPlaying ? 'animate-spin' : ''}`} style={{ animationDuration: '12s' }} />
               )}
             </div>
           </div>
           
           <div className="flex flex-col gap-6 text-center md:text-left">
-            <span className="text-[9px] font-black uppercase tracking-[0.5em] text-accent">Broadcast Live // {branding.siteName || "Digital"}</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.6em] text-accent">Studio Live // {branding.siteName}</span>
             <h1 className="text-6xl md:text-[110px] font-black tracking-[-0.04em] uppercase leading-[0.85] italic">
               {radioData.name}
             </h1>
-            <div className="flex items-center justify-center md:justify-start gap-6 text-zinc-600 text-[10px] font-bold uppercase tracking-widest">
+            <div className="flex items-center justify-center md:justify-start gap-6 text-zinc-600 text-[10px] font-black uppercase tracking-widest">
               <div className="flex items-center gap-2"><Users size={12} /><span>1.2K</span></div>
               <div className="flex items-center gap-2"><Activity size={12} /><span>128 KBPS</span></div>
             </div>
@@ -103,19 +103,19 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
             {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
           </button>
           <div className="flex items-center gap-6 text-zinc-700">
-             <Heart size={22} className="hover:text-accent transition-colors cursor-pointer" />
-             <Share2 size={22} className="hover:text-white transition-colors cursor-pointer" />
+             <Heart size={20} className="hover:text-accent transition-colors cursor-pointer" />
+             <Share2 size={20} className="hover:text-white transition-colors cursor-pointer" />
           </div>
         </div>
         <div className="hidden md:flex items-center gap-4 w-64">
-          <Volume2 size={18} className="text-zinc-700" />
+          <Volume2 size={16} className="text-zinc-700" />
           <input type="range" min="0" max="100" value={volume} onChange={(e) => setVolume(parseInt(e.target.value))} className="flex-1 accent-accent h-0.5 appearance-none bg-white/5 cursor-pointer" />
         </div>
       </div>
 
       <main className="px-6 md:px-16 py-20 flex flex-col items-center">
-         <div className="w-full max-w-4xl border border-white/5 bg-white/[0.02] p-12 text-center">
-            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-700">Studio Session Status: Secured</p>
+         <div className="w-full max-w-4xl border border-white/5 bg-white/[0.01] p-16 text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-800">Connection: Secured</p>
          </div>
       </main>
 
