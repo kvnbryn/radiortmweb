@@ -1,134 +1,127 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { 
+  Mic, 
+  MicOff, 
   Radio, 
-  Activity, 
-  Users, 
-  Settings, 
+  Volume2, 
   Play, 
   Square, 
-  Signal, 
-  Globe, 
-  Clock,
-  Save
+  Settings2, 
+  Music, 
+  Monitor,
+  Share2,
+  Activity
 } from "lucide-react";
 
 export default function RadioBroadcastPage() {
-  const [isLive, setIsLive] = useState(true);
-  const [listeners, setListeners] = useState(1240);
-  const [bitrate, setBitrate] = useState("128 kbps");
-  const [uptime, setUptime] = useState("04:22:15");
-
-  // Simulasi fluktuasi pendengar biar keliatan "hidup"
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setListeners(prev => prev + Math.floor(Math.random() * 5) - 2);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  const [isOnAir, setIsOnAir] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(true);
+  const [volume, setVolume] = useState(85);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 p-6 lg:p-10">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+    <div className="p-8 lg:p-12">
+      {/* Upper Control Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
         <div>
-          <h1 className="text-3xl font-light tracking-tight text-white mb-2">
-            Broadcast <span className="font-semibold text-zinc-500">Command Center</span>
-          </h1>
-          <p className="text-zinc-500 text-sm tracking-wide uppercase font-medium">
-            VisionStream Digital Radio Infrastructure
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Radio className="text-blue-500" size={24} />
+            </div>
+            <h1 className="text-4xl font-black tracking-tighter uppercase italic">
+              Siaran <span className="text-blue-500">Center</span>
+            </h1>
+          </div>
+          <p className="text-zinc-500 font-medium tracking-[0.2em] uppercase text-xs">
+            Professional Broadcast Terminal & Stream Controller
           </p>
         </div>
-        <div className="flex items-center gap-3 bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-2 rounded-full px-4">
-          <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-zinc-700'}`} />
-          <span className="text-xs font-bold uppercase tracking-widest">
-            {isLive ? 'System Online' : 'System Standby'}
-          </span>
+
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setIsOnAir(!isOnAir)}
+            className={`flex items-center gap-4 px-10 py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-500 ${
+              isOnAir 
+              ? 'bg-red-600 shadow-[0_0_50px_rgba(220,38,38,0.3)] scale-105' 
+              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'
+            }`}
+          >
+            {isOnAir ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+            {isOnAir ? 'Stop On-Air' : 'Go On-Air'}
+          </button>
         </div>
       </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Real-time Stats */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard icon={<Users size={18} />} label="Live Listeners" value={listeners.toLocaleString()} color="text-blue-400" />
-            <StatCard icon={<Activity size={18} />} label="Stream Bitrate" value={bitrate} color="text-emerald-400" />
-            <StatCard icon={<Clock size={18} />} label="Current Uptime" value={uptime} color="text-amber-400" />
-          </div>
+      <div className="grid grid-cols-12 gap-8">
+        {/* Live Visualizer & Waveform - The Heart of the UI */}
+        <div className="col-span-12 lg:col-span-8 space-y-8">
+          <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8 min-h-[400px] relative overflow-hidden group">
+            <div className="absolute top-8 left-8 flex items-center gap-4 z-10">
+              <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full">
+                <div className={`w-2 h-2 rounded-full ${isOnAir ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {isOnAir ? 'Signal Transmitting' : 'Idle Mode'}
+                </span>
+              </div>
+            </div>
 
-          {/* Visualizer Placeholder / Stream Monitor */}
-          <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-gradient-to-br from-zinc-900 to-black group">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-end gap-1 h-32">
-                {[...Array(20)].map((_, i) => (
+            {/* Waveform Visualization Placeholder */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50 group-hover:opacity-80 transition-opacity">
+              <div className="flex items-center gap-1.5 w-full px-20">
+                {[...Array(60)].map((_, i) => (
                   <div 
-                    key={i} 
-                    className="w-2 bg-gradient-to-t from-zinc-800 to-zinc-400 rounded-full animate-bounce" 
+                    key={i}
+                    className={`flex-1 rounded-full transition-all duration-300 ${isOnAir ? 'bg-blue-500' : 'bg-zinc-800'}`}
                     style={{ 
-                      height: `${Math.random() * 100}%`,
-                      animationDuration: `${0.5 + Math.random()}s`
+                      height: isOnAir ? `${20 + Math.random() * 80}%` : '4px',
+                      animation: isOnAir ? `pulse 0.8s ease-in-out infinite ${i * 0.05}s` : 'none'
                     }}
                   />
                 ))}
               </div>
             </div>
-            <div className="absolute bottom-6 left-6 flex items-center gap-4">
-              <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
-                <Radio className="text-white" size={24} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Live Monitor</p>
-                <p className="text-xs text-zinc-500 tracking-wider">Mount Point: /live</p>
-              </div>
+
+            <div className="absolute bottom-8 right-8 text-right">
+              <p className="text-4xl font-mono font-black text-white/20 tracking-tighter">00:42:15:09</p>
             </div>
+          </div>
+
+          {/* Quick Input Toggles */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <InputToggle icon={<Mic size={20} />} label="Vocal Mic" active={!isMicMuted} onClick={() => setIsMicMuted(!isMicMuted)} />
+            <InputToggle icon={<Monitor size={20} />} label="System Audio" active={true} />
+            <InputToggle icon={<Music size={20} />} label="Auto Playlist" active={false} />
+            <InputToggle icon={<Share2 size={20} />} label="External Link" active={false} />
           </div>
         </div>
 
-        {/* Right Column: Controls */}
-        <div className="space-y-6">
-          {/* Production Controls */}
-          <div className="bg-zinc-900/30 backdrop-blur-2xl border border-white/5 rounded-3xl p-6">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
-              <Settings size={14} /> Production Control
-            </h2>
-            
-            <div className="space-y-5">
-              <div>
-                <label className="text-[10px] uppercase tracking-tighter text-zinc-500 font-bold mb-2 block">Stream Title</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Morning Vibes with DJ Vision"
-                  className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-600 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase tracking-tighter text-zinc-500 font-bold mb-2 block">Category / Genre</label>
-                <select className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none appearance-none">
-                  <option>Top 40 Hits</option>
-                  <option>Electronic</option>
-                  <option>Talk Show</option>
-                </select>
-              </div>
-              
-              <button className="w-full mt-4 bg-white text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all active:scale-[0.98]">
-                <Save size={18} />
-                Update Broadcast Info
-              </button>
-            </div>
-          </div>
+        {/* Console Faders & Levels */}
+        <div className="col-span-12 lg:col-span-4 space-y-6">
+          <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-[40px] p-8">
+            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500 mb-8 flex items-center gap-2">
+              <Settings2 size={14} /> Mixing Console
+            </h3>
 
-          {/* Infrastructure Health */}
-          <div className="bg-zinc-900/30 backdrop-blur-2xl border border-white/5 rounded-3xl p-6">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
-              <Signal size={14} /> Node Status
-            </h2>
-            <div className="space-y-4">
-              <HealthItem label="Icecast Server" status="Healthy" />
-              <HealthItem label="Database Link" status="Connected" />
-              <HealthItem label="Storage Latency" status="12ms" />
+            <div className="space-y-10">
+              {/* Vertical Fader Logic */}
+              <div className="flex justify-between items-center h-64 px-4">
+                <Fader label="MIC" value={75} color="bg-blue-500" />
+                <Fader label="MUSIC" value={60} color="bg-purple-500" />
+                <Fader label="MASTER" value={volume} color="bg-white" />
+              </div>
+
+              <div className="space-y-4 pt-6 border-t border-white/5">
+                <div className="flex justify-between text-[10px] font-bold text-zinc-500 tracking-widest">
+                  <span>OUTPUT GAIN</span>
+                  <span>+4.2 dB</span>
+                </div>
+                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden flex gap-0.5">
+                  <div className="h-full w-[70%] bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                  <div className="h-full w-[10%] bg-yellow-500" />
+                  <div className="h-full w-[20%] bg-zinc-700" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -137,25 +130,36 @@ export default function RadioBroadcastPage() {
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: any, label: string, value: string, color: string }) {
+function InputToggle({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick?: () => void }) {
   return (
-    <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-5 rounded-2xl">
-      <div className="flex items-center gap-3 mb-3 text-zinc-500">
-        {icon}
-        <span className="text-[10px] uppercase font-bold tracking-widest">{label}</span>
-      </div>
-      <p className={`text-2xl font-light tracking-tight ${color}`}>{value}</p>
-    </div>
+    <button 
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center p-6 rounded-3xl border transition-all duration-500 gap-3 group ${
+        active 
+        ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' 
+        : 'bg-zinc-900/20 border-white/5 text-zinc-600 hover:border-white/10'
+      }`}
+    >
+      <span className={`${active ? 'scale-110 shadow-[0_0_20px_rgba(59,130,246,0.2)]' : ''} transition-transform`}>{icon}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+    </button>
   );
 }
 
-function HealthItem({ label, status }: { label: string, status: string }) {
+function Fader({ label, value, color }: { label: string, value: number, color: string }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-      <span className="text-xs text-zinc-400">{label}</span>
-      <span className="text-[10px] font-bold text-zinc-200 uppercase tracking-tighter px-2 py-1 bg-white/5 rounded">
-        {status}
-      </span>
+    <div className="flex flex-col items-center gap-4 h-full group">
+      <div className="flex-1 w-1 bg-zinc-800 rounded-full relative">
+        <div 
+          className={`absolute bottom-0 left-0 w-full rounded-full ${color} opacity-20`} 
+          style={{ height: `${value}%` }} 
+        />
+        <div 
+          className={`absolute bottom-[${value}%] -translate-y-1/2 left-1/2 -translate-x-1/2 w-8 h-12 rounded-lg ${color} shadow-2xl cursor-pointer border border-white/20 hover:scale-110 transition-transform`}
+          style={{ bottom: `${value}%` }}
+        />
+      </div>
+      <span className="text-[9px] font-black tracking-widest text-zinc-600 group-hover:text-zinc-400">{label}</span>
     </div>
   );
 }
