@@ -1,94 +1,184 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { 
-  LayoutDashboard, 
-  Radio, 
-  Tv, 
-  Video, 
-  Settings, 
-  FolderTree, 
-  BarChart3,
-  LogOut,
-  Zap
+  LayoutDashboard, Tv, Radio, Layers, Settings, LogOut, Menu, X, Users, Activity, Video
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const menuItems = [
-    { icon: <LayoutDashboard size={20} />, label: "Dashboard", href: "/admin" },
-    { icon: <Radio size={20} />, label: "Siaran Center", href: "/admin/radio" },
-    { icon: <Tv size={20} />, label: "TV Channels", href: "/admin/tv" },
-    { icon: <Video size={20} />, label: "Shorts Box", href: "/admin/shorts" },
-    { icon: <FolderTree size={20} />, label: "Categories", href: "/admin/category" },
-    { icon: <BarChart3 size={20} />, label: "Analytics", href: "/admin/analytics" },
-    { icon: <Settings size={20} />, label: "Settings", href: "/admin/settings" },
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const [branding, setBranding] = useState({ siteName: "", logoUrl: "" });
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const res = await fetch("/api/settings");
+        const json = await res.json();
+        if (json.success && json.data) {
+          setBranding({
+            siteName: json.data.siteName || "VisionStream",
+            logoUrl: json.data.logoUrl || ""
+          });
+        }
+      } catch (error) {
+        console.error("Gagal load branding admin");
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+    fetchBranding();
+  }, []);
+
+  const handleLogout = async () => {
+    if (!confirm("Yakin ingin keluar dari panel admin?")) return;
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (res.ok) {
+        router.push("/login");
+        router.refresh();
+      } else {
+        alert("Gagal melakukan logout.");
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan jaringan saat logout.");
+    }
+  };
+
+  const navItems = [
+    { label: "Dashboard", href: "/admin", icon: <LayoutDashboard size={20} /> },
+    { label: "Kelola TV", href: "/admin/tv", icon: <Tv size={20} /> },
+    { label: "Siaran Center", href: "/admin/radio", icon: <Radio size={20} /> },
+    { label: "Kelola Shorts", href: "/admin/shorts", icon: <Video size={20} /> },
+    { label: "Kategori", href: "/admin/category", icon: <Layers size={20} /> },
+    { label: "Laporan", href: "/admin/analytics", icon: <Activity size={20} /> },
+    { label: "Pengaturan", href: "/admin/settings", icon: <Settings size={20} /> },
   ];
 
-  return (
-    <div className="flex min-h-screen bg-[#020202] text-white selection:bg-blue-500/30">
-      {/* Sidebar - Pro Glassmorphism */}
-      <aside className="w-72 border-r border-white/5 flex flex-col fixed inset-y-0 left-0 z-50 bg-black/40 backdrop-blur-3xl">
-        <div className="p-8">
-          {/* Logo Section - Balik ke Original Image Logic */}
-          <div className="flex items-center gap-4 mb-12 group cursor-pointer">
-            <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-white/10 group-hover:border-blue-500/50 transition-all duration-500 shadow-2xl shadow-blue-500/10">
-              <img 
-                src="/logo.png" 
-                alt="VisionStream Logo" 
-                className="w-full h-full object-cover scale-110 group-hover:scale-100 transition-transform duration-700" 
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-black text-xl tracking-tighter leading-none">VISION</span>
-              <span className="text-[10px] tracking-[0.3em] text-blue-500 font-bold uppercase opacity-80">Stream Studio</span>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            {menuItems.map((item, idx) => (
-              <Link
-                key={idx}
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col justify-between bg-surface border-r border-white/5 p-6">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="mb-10 flex items-center gap-2">
+          <Link href="/" className="transition-transform hover:scale-105 flex items-center">
+            {!isLoaded ? (
+              <div className="h-8 w-32 animate-pulse bg-white/10 rounded-lg" />
+            ) : branding.logoUrl ? (
+              <img src={branding.logoUrl} alt={branding.siteName} className="h-8 object-contain" />
+            ) : (
+              <span className="text-2xl font-black tracking-tighter text-accent uppercase italic">
+                {branding.siteName.split(' ')[0]}<span className="text-white">{branding.siteName.split(' ')[1] || ""}</span>
+              </span>
+            )}
+          </Link>
+          <span className="rounded bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent border border-accent/50 ml-2 shrink-0 uppercase tracking-tighter">ADMIN</span>
+        </div>
+        
+        <nav className="flex flex-col gap-2">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link 
+                key={item.href} 
                 href={item.href}
-                className="flex items-center gap-4 px-5 py-4 text-zinc-400 hover:text-white rounded-2xl transition-all duration-300 hover:bg-white/5 border border-transparent hover:border-white/5 group"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold transition-all ${
+                  isActive 
+                    ? "bg-accent/10 text-accent border border-accent/20 shadow-[0_0_15px_rgba(229,9,20,0.1)]" 
+                    : "text-muted hover:bg-white/5 hover:text-white border border-transparent"
+                }`}
               >
-                <span className="group-hover:scale-110 group-hover:text-blue-500 transition-all duration-300">
-                  {item.icon}
-                </span>
-                <span className="text-sm font-semibold tracking-tight">{item.label}</span>
+                {item.icon}
+                {item.label}
               </Link>
-            ))}
-          </nav>
-        </div>
+            );
+          })}
+        </nav>
+      </div>
 
-        <div className="mt-auto p-8">
-          <div className="p-5 rounded-3xl bg-gradient-to-br from-blue-600/20 to-transparent border border-blue-500/20 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap size={14} className="text-blue-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-blue-300">Node Status</span>
-            </div>
-            <p className="text-[11px] text-zinc-400 leading-relaxed">Server VPS Jakarta aktif dengan performa 10Gbps.</p>
-          </div>
-          
-          <button className="flex items-center gap-4 w-full px-5 py-4 text-zinc-500 hover:text-red-400 transition-all duration-300 rounded-2xl hover:bg-red-500/5">
-            <LogOut size={20} />
-            <span className="text-sm font-bold uppercase tracking-widest">Logout</span>
-          </button>
-        </div>
+      <button 
+        onClick={handleLogout}
+        className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-muted transition-all hover:bg-red-500/10 hover:text-red-500 mt-auto border border-transparent hover:border-red-500/20 w-full shrink-0"
+      >
+        <LogOut size={20} />
+        Keluar
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-background text-white selection:bg-accent selection:text-white">
+      <aside className="hidden w-72 shrink-0 md:block fixed h-screen z-20">
+        <SidebarContent />
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 ml-72 relative">
-        {/* Cinematic Ambient Glow */}
-        <div className="fixed top-0 right-0 w-[800px] h-[600px] bg-blue-600/5 blur-[160px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        <div className="fixed bottom-0 left-0 w-[600px] h-[400px] bg-purple-600/5 blur-[140px] rounded-full translate-y-1/3 -translate-x-1/4 pointer-events-none" />
-        
-        <div className="relative z-10">
+      <button 
+        className="fixed top-4 right-4 z-50 rounded-md bg-surface p-2 border border-white/10 md:hidden shadow-lg backdrop-blur-md"
+        onClick={() => setIsMobileMenuOpen(true)}
+      >
+        <Menu size={24} />
+      </button>
+
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm md:hidden"
+            />
+            <motion.div 
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 z-[60] w-72 shadow-2xl md:hidden bg-surface h-full"
+            >
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="absolute top-6 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors z-10"
+              >
+                <X size={20} />
+              </button>
+              <SidebarContent />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <div className="flex-grow md:ml-72 flex flex-col min-h-screen transition-all w-full overflow-hidden">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/5 bg-background/80 backdrop-blur-xl px-6 py-4 md:px-10">
+          <div>
+            <h2 className="text-lg font-bold text-white hidden md:block uppercase tracking-tighter">
+               {branding.siteName || "Sistem"} <span className="text-muted font-normal text-sm">/ Control Center</span>
+            </h2>
+          </div>
+          <div className="flex items-center gap-4 ml-auto md:ml-0">
+             <div className="text-right hidden sm:block">
+               <p className="text-sm font-bold tracking-tight">Main Operator</p>
+               <p className="text-[10px] uppercase tracking-widest text-accent font-black">Authorized</p>
+             </div>
+             <div className="h-10 w-10 rounded-lg bg-surface border border-white/10 flex items-center justify-center shadow-lg">
+               <Users size={18} className="text-white" />
+             </div>
+          </div>
+        </header>
+
+        <main className="flex-grow p-4 sm:p-6 md:p-10 w-full overflow-x-hidden">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
