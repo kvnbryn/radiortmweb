@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+model Category {
+  id          Int            @id @default(autoincrement())
+  name        String         @unique
+  slug        String         @unique
+  thumbnail   String?        @db.Text
+  color       String         @default("bg-red-500")
+  tvChannels  TvChannel[]
+  radios      RadioChannel[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model TvChannel {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  thumbnail   String?  @db.Text
+  url         String   @db.Text
+  resolution  String   @default("1080p")
+  status      Status   @default(OFFLINE)
+  viewers     Int      @default(0)
+  peakViewers Int      @default(0)
+  streamType  StreamType @default(M3U8)
+  isPinned    Boolean  @default(false)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RadioChannel {
+  id            Int      @id @default(autoincrement())
+  name          String
+  slug          String   @unique
+  description   String?  @db.Text
+  thumbnail     String?  @db.Text
+  url           String   @db.Text
+  bitrate       String   @default("128kbps")
+  status        Status   @default(OFFLINE)
+  listeners     Int      @default(0)
+  peakListeners Int      @default(0)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Short {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  youtubeId   String   @unique
+  thumbnail   String?  @db.Text
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  likes       ShortLike[]
+
+  @@index([slug])
+}
+
+model ShortLike {
+  id         Int      @id @default(autoincrement())
+  shortId    Int
+  identifier String   // User ID dari browser (UUID/Localstorage)
+  short      Short    @relation(fields: [shortId], references: [id], onDelete: Cascade)
+
+  @@unique([shortId, identifier])
+  @@index([shortId])
+}
+
+model ViewerSession {
+  id          Int      @id @default(autoincrement())
+  identifier  String   
+  channelId   Int
+  channelType String   
+  lastSeen    DateTime @default(now()) @updatedAt
+
+  @@unique([identifier, channelId, channelType])
+}
+
+model ViewerHistory {
+  id          Int      @id @default(autoincrement())
+  channelId   Int
+  channelType String   
+  viewerCount Int
+  createdAt   DateTime @default(now())
+
+  @@index([channelId, channelType])
+}
+
+enum Status {
+  LIVE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum StreamType {
+  M3U8
+  YOUTUBE
+}
+
+model Setting {
+  id                 Int      @id @default(autoincrement())
+  siteName           String   @default("Live Stream")
+  seoDescription     String   @db.Text
+  autoPlay           Boolean  @default(true)
+  isMaintenance      Boolean  @default(false)
+  logoUrl            String?  @db.Text
+  defaultThumbnail   String?  @db.Text
+  termsContent       String?  @db.LongText
+  privacyContent     String?  @db.LongText
+  helpContent        String?  @db.LongText
+  securityContent    String?  @db.LongText
+  
+  youtubeApiKey      String?  @db.Text
+  youtubeChannelLink String?  @db.Text
+  youtubeCategoryId  Int?     @default(0)
+
+  updatedAt          DateTime @updatedAt
+}
