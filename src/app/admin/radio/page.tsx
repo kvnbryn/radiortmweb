@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { 
-  Mic, MicOff, Play, Square, Settings, Volume2, Music, Radio as RadioIcon, 
-  Terminal, ShieldCheck, Cpu, Database, AlertCircle, Headphones
+  Mic, MicOff, Play, Square, Radio as RadioIcon, 
+  Terminal, ShieldCheck, Cpu, Database, Headphones, Activity
 } from "lucide-react";
 
 export default function RadioBroadcastPage() {
@@ -12,103 +12,109 @@ export default function RadioBroadcastPage() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
   const [gain, setGain] = useState(80);
+  const [error, setError] = useState("");
 
-  // Load Audio Devices
   useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then(items => {
-      const audioInputs = items.filter(d => d.kind === "audioinput");
-      setDevices(audioInputs);
-      if (audioInputs.length > 0) setSelectedDevice(audioInputs[0].deviceId);
-    });
+    // Perbaikan Bug: Cek apakah mediaDevices tersedia (Wajib HTTPS untuk akses ini)
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices()
+        .then(items => {
+          const audioInputs = items.filter(d => d.kind === "audioinput");
+          setDevices(audioInputs);
+          if (audioInputs.length > 0) setSelectedDevice(audioInputs[0].deviceId);
+        })
+        .catch(err => {
+          console.error("Gagal akses hardware:", err);
+          setError("Akses hardware ditolak browser.");
+        });
+    } else {
+      setError("Browser membutuhkan koneksi HTTPS untuk fitur Siaran.");
+    }
   }, []);
 
   const toggleOnAir = () => {
     if (!isOnAir) {
-      if (!confirm("Konfirmasi: Mulai siaran langsung ke server utama?")) return;
+      if (!confirm("KONFIRMASI: Mulai transmisi sinyal ke server pusat?")) return;
     }
     setIsOnAir(!isOnAir);
   };
 
   return (
     <div className="space-y-6">
-      {/* Status Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-surface p-6 border border-white/5 rounded-none border-l-4 border-l-accent">
+      {/* Console Header */}
+      <div className="bg-surface p-6 border border-white/5 rounded-none border-l-4 border-l-accent flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className={`h-12 w-12 rounded-none flex items-center justify-center border ${isOnAir ? 'bg-accent/10 border-accent animate-pulse' : 'bg-white/5 border-white/10'}`}>
+          <div className={`h-12 w-12 flex items-center justify-center border ${isOnAir ? 'bg-accent/10 border-accent animate-pulse' : 'bg-white/5 border-white/10'}`}>
             <RadioIcon size={24} className={isOnAir ? 'text-accent' : 'text-muted'} />
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tighter leading-none">Siaran <span className="text-accent">Center</span></h1>
-            <p className="text-[10px] font-mono text-muted uppercase tracking-[0.2em] mt-1">Terminal ID: VS-RDO-0922</p>
+            <h1 className="text-xl font-black uppercase tracking-tighter">SIARAN CENTER</h1>
+            <p className="text-[9px] font-mono text-muted uppercase tracking-widest mt-1">Status: {isOnAir ? 'TRANSMITTING' : 'READY'}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-           <div className="text-right mr-4 hidden lg:block">
-              <p className="text-[10px] font-mono text-muted uppercase tracking-widest">Stream Engine</p>
-              <p className="text-sm font-bold text-emerald-500 uppercase tracking-tighter">Balanced Node</p>
-           </div>
-           <button 
-            onClick={toggleOnAir}
-            className={`h-14 px-8 font-black uppercase tracking-widest transition-all ${
-              isOnAir 
-              ? 'bg-accent text-white shadow-[0_0_30px_rgba(229,9,20,0.4)] hover:bg-accent/90' 
-              : 'bg-white/5 border border-white/10 text-muted hover:text-white hover:border-white/20'
-            }`}
-          >
-            {isOnAir ? "System: Online" : "Ready to Air"}
-          </button>
-        </div>
+        <button 
+          onClick={toggleOnAir}
+          className={`h-14 px-10 font-black uppercase tracking-widest transition-all ${
+            isOnAir 
+            ? 'bg-accent text-white shadow-[0_0_30px_rgba(229,9,20,0.3)]' 
+            : 'bg-white/5 border border-white/10 text-muted hover:text-white'
+          }`}
+        >
+          {isOnAir ? "STOP BROADCAST" : "GO ON-AIR"}
+        </button>
       </div>
 
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/50 p-4 text-xs font-bold text-red-500 uppercase tracking-widest">
+          ERROR: {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Main Console Area */}
+        {/* Signal & Visualizer */}
         <div className="lg:col-span-8 space-y-6">
-          
-          {/* Signal Monitor */}
-          <div className="bg-black border border-white/10 p-8 h-[350px] relative flex flex-col justify-end">
+          <div className="bg-black border border-white/10 p-8 h-[380px] relative flex flex-col justify-end overflow-hidden">
             <div className="absolute top-6 left-6 flex items-center gap-2">
-              <div className="bg-accent px-3 py-1 text-[10px] font-black uppercase tracking-widest">Master Output</div>
-              <div className="bg-white/5 px-3 py-1 text-[10px] font-mono uppercase tracking-widest border border-white/10">Peak: -1.2dB</div>
+              <span className="bg-accent px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">Main Out</span>
+              <span className="text-[9px] font-mono text-muted uppercase tracking-widest">Format: 44.1kHz / 128kbps</span>
             </div>
 
-            {/* Simulated VU Meter Bars */}
-            <div className="flex items-end gap-1 h-48 px-10">
-              {[...Array(40)].map((_, i) => (
+            {/* VU Meter Bars - Industrial Style */}
+            <div className="flex items-end gap-1 h-40">
+              {[...Array(50)].map((_, i) => (
                 <div 
                   key={i} 
                   className={`flex-1 transition-all duration-75 ${isOnAir ? 'bg-accent' : 'bg-white/5'}`}
                   style={{ 
-                    height: isOnAir ? `${Math.floor(Math.random() * 90) + 10}%` : '2px',
-                    opacity: 1 - (i * 0.015)
+                    height: isOnAir ? `${Math.random() * 100}%` : '2px',
+                    opacity: 1 - (i * 0.01)
                   }}
                 />
               ))}
             </div>
-            
-            <div className="mt-8 border-t border-white/5 pt-4 flex justify-between items-center font-mono text-[10px] text-muted tracking-widest uppercase">
-              <span>0Hz</span>
-              <span>Input Signal Spectrum</span>
-              <span>22kHz</span>
+
+            <div className="mt-6 border-t border-white/5 pt-4 flex justify-between font-mono text-[9px] text-muted">
+              <span>DB -60</span>
+              <span>INPUT SPECTRUM MONITOR</span>
+              <span>DB 0</span>
             </div>
           </div>
 
-          {/* Device Selection & Mic Control */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-surface border border-white/5 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Headphones size={16} className="text-accent" />
-                <h3 className="text-xs font-black uppercase tracking-widest">Audio Input Source</h3>
-              </div>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
+                <Headphones size={14} /> Input Audio Device
+              </h3>
               <select 
+                disabled={isOnAir}
                 value={selectedDevice}
                 onChange={(e) => setSelectedDevice(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-none p-3 text-xs font-mono focus:border-accent outline-none"
+                className="w-full bg-black border border-white/10 p-3 text-[11px] font-mono focus:border-accent outline-none uppercase disabled:opacity-50"
               >
-                {devices.map(device => (
-                  <option key={device.deviceId} value={device.deviceId}>{device.label || `Device ${device.deviceId.slice(0,5)}`}</option>
-                ))}
+                {devices.length > 0 ? devices.map(d => (
+                  <option key={d.deviceId} value={d.deviceId}>{d.label || 'Unknown Input'}</option>
+                )) : <option>No Device Detected</option>}
               </select>
             </div>
 
@@ -116,56 +122,48 @@ export default function RadioBroadcastPage() {
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setIsMicActive(!isMicActive)}
-                  className={`h-12 w-12 flex items-center justify-center border transition-all ${isMicActive ? 'bg-accent border-accent text-white' : 'bg-black border-white/10 text-muted'}`}
+                  className={`h-12 w-12 flex items-center justify-center border ${isMicActive ? 'bg-accent border-accent text-white' : 'bg-black border-white/10 text-muted'}`}
                 >
                   {isMicActive ? <Mic size={20} /> : <MicOff size={20} />}
                 </button>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest leading-none">Mic Channel</h3>
-                  <p className="text-[10px] text-muted mt-1 uppercase">{isMicActive ? 'Transmitting' : 'Muted'}</p>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest leading-none">Microphone</h3>
+                  <p className="text-[9px] text-muted mt-1 uppercase font-bold">{isMicActive ? 'Transmitting' : 'Muted'}</p>
                 </div>
               </div>
-              <div className="w-1/3">
-                 <input 
-                  type="range" 
-                  value={gain} 
-                  onChange={(e) => setGain(parseInt(e.target.value))}
-                  className="w-full accent-accent bg-white/10 h-1 rounded-none appearance-none cursor-pointer" 
-                />
-              </div>
+              <input 
+                type="range" 
+                value={gain}
+                onChange={(e) => setGain(parseInt(e.target.value))}
+                className="w-24 accent-accent bg-white/10 h-1 appearance-none cursor-pointer" 
+              />
             </div>
           </div>
         </div>
 
-        {/* System Diagnostics Panel */}
+        {/* Console Stats */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-surface border border-white/5 p-6">
-            <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
-              <Terminal size={16} className="text-accent" />
-              <h3 className="text-xs font-black uppercase tracking-widest tracking-widest">Console Diagnostics</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted mb-6 flex items-center gap-2">
+              <Terminal size={14} /> Live Engine Log
+            </h3>
+            <div className="bg-black p-4 font-mono text-[9px] leading-relaxed text-muted border-l-2 border-accent">
+              [SYSTEM] INITIALIZING ENGINE...<br/>
+              [SERVER] CONNECTED TO NODE-01<br/>
+              [BUFFER] 2048 SAMPLES STABLE<br/>
+              {isOnAir ? <span className="text-accent">[LIVE] BROADCASTING TO MOUNT /LIVE</span> : "[IDLE] WAITING FOR OPERATOR"}
             </div>
             
-            <div className="space-y-4">
-               <DiagnosticItem label="Core Connection" status="Stable" color="text-emerald-500" />
-               <DiagnosticItem label="Icecast Auth" status="Verified" color="text-emerald-500" />
-               <DiagnosticItem label="Network Latency" status="14ms" color="text-accent" />
-               <DiagnosticItem label="Sync Frequency" status="44.1kHz" color="text-white" />
-            </div>
-
-            <div className="mt-8 p-4 bg-black border-l-2 border-accent font-mono text-[10px] leading-relaxed text-muted">
-               {">"} INITIALIZING BROADCAST ENGINE...<br/>
-               {">"} AUTHENTICATING MOUNT POINT /LIVE...<br/>
-               {">"} BUFFERING 2048 SAMPLES...<br/>
-               {">"} {isOnAir ? "SYSTEM BROADCASTING LIVE" : "SYSTEM READY"}
+            <div className="mt-6 space-y-3 pt-4 border-t border-white/5">
+              <StatItem label="Engine Integrity" val="99.2%" />
+              <StatItem label="Stream Latency" val="12ms" />
+              <StatItem label="Concurrent Link" val="Online" />
             </div>
           </div>
 
-          <div className="bg-surface border border-white/5 p-6">
-            <h3 className="text-xs font-black uppercase tracking-widest mb-6 border-b border-white/5 pb-4">Server Integrity</h3>
-            <div className="grid grid-cols-2 gap-4">
-               <MiniStat icon={<Cpu size={14}/>} label="Load" value="12%" />
-               <MiniStat icon={<Database size={14}/>} label="Queue" value="0.0s" />
-            </div>
+          <div className="bg-surface border border-white/5 p-6 grid grid-cols-2 gap-4">
+             <MiniBox icon={<Cpu size={14}/>} label="CPU Load" val="14%" />
+             <MiniBox icon={<Database size={14}/>} label="IO Buffer" val="0.2s" />
           </div>
         </div>
       </div>
@@ -173,23 +171,21 @@ export default function RadioBroadcastPage() {
   );
 }
 
-function DiagnosticItem({ label, status, color }: { label: string, status: string, color: string }) {
+function StatItem({ label, val }: { label: string, val: string }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-[10px] uppercase tracking-widest text-muted font-bold">{label}</span>
-      <span className={`text-[10px] font-mono uppercase font-black ${color}`}>{status}</span>
+    <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-tighter">
+      <span className="text-muted">{label}</span>
+      <span className="text-white">{val}</span>
     </div>
   );
 }
 
-function MiniStat({ icon, label, value }: { icon: any, label: string, value: string }) {
+function MiniBox({ icon, label, val }: { icon: any, label: string, val: string }) {
   return (
-    <div className="bg-black/40 p-3 border border-white/5 flex items-center gap-3">
+    <div className="bg-black/40 p-4 border border-white/5 flex flex-col gap-2">
       <div className="text-accent">{icon}</div>
-      <div>
-        <p className="text-[8px] text-muted uppercase font-bold tracking-tighter">{label}</p>
-        <p className="text-xs font-mono font-bold text-white">{value}</p>
-      </div>
+      <p className="text-[8px] text-muted font-black uppercase">{label}</p>
+      <p className="text-xs font-mono font-bold">{val}</p>
     </div>
   );
 }

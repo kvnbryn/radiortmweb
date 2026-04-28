@@ -80,12 +80,16 @@ export default function AdminLayout({
               </span>
             )}
           </Link>
-          <span className="rounded bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent border border-accent/50 ml-2 shrink-0 uppercase tracking-tighter">ADMIN</span>
+          <span className="rounded bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent border border-accent/50 ml-2 shrink-0">ADMIN</span>
         </div>
         
         <nav className="flex flex-col gap-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            // Perbaikan Bug Navigasi: Dashboard (/admin) hanya active jika path bener-bener /admin
+            const isActive = item.href === "/admin" 
+              ? pathname === "/admin" 
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
             return (
               <Link 
                 key={item.href} 
@@ -160,16 +164,14 @@ export default function AdminLayout({
       <div className="flex-grow md:ml-72 flex flex-col min-h-screen transition-all w-full overflow-hidden">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/5 bg-background/80 backdrop-blur-xl px-6 py-4 md:px-10">
           <div>
-            <h2 className="text-lg font-bold text-white hidden md:block uppercase tracking-tighter">
-               {branding.siteName || "Sistem"} <span className="text-muted font-normal text-sm">/ Control Center</span>
-            </h2>
+            <h2 className="text-lg font-bold text-white hidden md:block">Panel Kendali {branding.siteName || "Sistem"}</h2>
           </div>
           <div className="flex items-center gap-4 ml-auto md:ml-0">
              <div className="text-right hidden sm:block">
-               <p className="text-sm font-bold tracking-tight">Main Operator</p>
-               <p className="text-[10px] uppercase tracking-widest text-accent font-black">Authorized</p>
+               <p className="text-sm font-bold">Studio Pusat</p>
+               <p className="text-[10px] uppercase tracking-widest text-accent font-black">Superadmin</p>
              </div>
-             <div className="h-10 w-10 rounded-lg bg-surface border border-white/10 flex items-center justify-center shadow-lg">
+             <div className="h-10 w-10 rounded-full bg-surface border border-white/20 flex items-center justify-center shadow-lg">
                <Users size={18} className="text-white" />
              </div>
           </div>
