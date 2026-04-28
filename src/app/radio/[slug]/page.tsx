@@ -1,25 +1,41 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Play, Pause, Volume2, Radio, Share2, Heart, Users } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Play, Pause, Volume2, Radio, Share2, Heart, Users, ArrowLeft, MoreHorizontal, Music2 } from "lucide-react";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
 export default function RadioPlayerPage({ params }: { params: { slug: string } }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(80);
   const [radioData, setRadioData] = useState<any>(null);
-  const audioRef = React.useRef<HTMLAudioElement>(null);
+  const [relatedRadios, setRelatedRadios] = useState<any[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Stream URL dari VPS lo
   const STREAM_URL = "http://141.11.25.59:8000/live";
 
   useEffect(() => {
-    // Fetch data radio berdasarkan slug dari API lo
-    fetch(`/api/radio?slug=${params.slug}`)
-      .then(res => res.json())
-      .then(json => {
-        if (json.success) setRadioData(json.data);
-      });
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/radio?slug=${params.slug}`);
+        const json = await res.json();
+        if (json.success) {
+          setRadioData(json.data);
+          // Ambil radio lain dalam kategori yang sama
+          const relatedRes = await fetch(`/api/radio?category=${json.data.categoryId}`);
+          const relatedJson = await relatedRes.json();
+          if (relatedJson.success) {
+            setRelatedRadios(relatedJson.data.filter((r: any) => r.slug !== params.slug));
+          }
+        }
+      } catch (error) {
+        console.error("Gagal load data radio");
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+    fetchData();
   }, [params.slug]);
 
   const togglePlay = () => {
@@ -27,7 +43,6 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        // Re-load stream biar gak delay pas kelamaan pause
         audioRef.current.load();
         audioRef.current.play();
       }
@@ -35,112 +50,142 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
     }
   };
 
-  if (!radioData) return <div className="min-h-screen bg-black flex items-center justify-center text-accent font-black animate-pulse uppercase tracking-[0.5em]">VisionStream Loading...</div>;
+  if (!isLoaded) return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6">
+      <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+      <p className="text-accent font-black uppercase tracking-[0.5em] animate-pulse text-xs">VisionStream Loading...</p>
+    </div>
+  );
+
+  if (!radioData) return <div className="min-h-screen bg-black flex items-center justify-center text-accent">Stasiun tidak ditemukan.</div>;
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-accent relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-accent selection:text-white">
       <Navbar />
       
-      {/* Cinematic Background Blur */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src={radioData.logoUrl || "/placeholder-radio.jpg"} 
-          className="w-full h-full object-cover opacity-20 blur-[100px] scale-150"
-          alt="bg"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
-      </div>
+      {/* Spotify Style Hero Header */}
+      <div className="relative pt-24 pb-10 px-6 md:px-12 overflow-hidden">
+        {/* Background Gradient matching the Logo color (Simulated with Logo + Blur) */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={radioData.logoUrl || "/placeholder-radio.jpg"} 
+            className="w-full h-full object-cover opacity-30 blur-[120px] scale-150"
+            alt="ambient"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
+        </div>
 
-      <main className="relative z-10 container mx-auto px-6 pt-32 pb-20">
-        <div className="flex flex-col lg:flex-row items-center gap-16">
-          
-          {/* Radio Cover Art */}
+        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-end gap-8">
           <div className="relative group">
-            <div className={`absolute -inset-4 bg-accent/20 rounded-[40px] blur-2xl transition-all duration-700 ${isPlaying ? 'opacity-100 scale-110' : 'opacity-0'}`} />
-            <div className="relative w-72 h-72 md:w-96 md:h-96 rounded-[40px] overflow-hidden border border-white/10 shadow-2xl">
-              <img 
-                src={radioData.logoUrl || "/placeholder-radio.jpg"} 
-                className={`w-full h-full object-cover transition-transform duration-[5s] ${isPlaying ? 'scale-110' : 'scale-100'}`}
-                alt={radioData.name}
-              />
-              {!isPlaying && (
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                   <Radio size={64} className="text-white/20 animate-pulse" />
-                </div>
-              )}
+            <div className={`absolute -inset-4 bg-accent/20 rounded-xl blur-2xl transition-all duration-700 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
+            <img 
+              src={radioData.logoUrl || "/placeholder-radio.jpg"} 
+              className="w-52 h-52 md:w-64 md:h-64 object-cover rounded-xl shadow-2xl border border-white/10 relative z-10"
+              alt={radioData.name}
+            />
+          </div>
+          
+          <div className="flex flex-col gap-4 text-center md:text-left">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent">Stasiun Radio Live</span>
+            <h1 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-none">{radioData.name}</h1>
+            <div className="flex items-center justify-center md:justify-start gap-4 text-zinc-400 text-sm font-bold">
+              <span className="text-white">{radioData.category?.name || "Music"}</span>
+              <span className="w-1 h-1 bg-zinc-600 rounded-full" />
+              <span>{relatedRadios.length + 1} Stasiun dalam Kategori</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Radio Info & Controls */}
-          <div className="flex-1 text-center lg:text-left space-y-8">
-            <div>
-              <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
-                <span className="bg-accent px-3 py-1 text-[10px] font-black uppercase tracking-widest">Live Broadcast</span>
-                <div className="flex items-center gap-2 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
-                  <Users size={12} /> 1.2K Listeners
-                </div>
-              </div>
-              <h1 className="text-6xl md:text-8xl font-black tracking-tighter uppercase italic mb-4 leading-none">
-                {radioData.name}
-              </h1>
-              <p className="text-xl text-zinc-400 font-medium max-w-xl leading-relaxed">
-                {radioData.description || "Menyiarkan musik terbaik dan informasi terkini langsung ke telinga Anda."}
-              </p>
+      {/* Control Bar - Sleek & Modern */}
+      <div className="sticky top-[70px] z-30 bg-[#0a0a0a]/80 backdrop-blur-md border-y border-white/5 px-6 md:px-12 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={togglePlay}
+            className="w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl shadow-accent/20"
+          >
+            {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
+          </button>
+          <button className="text-zinc-400 hover:text-accent transition-colors"><Heart size={24} /></button>
+          <button className="text-zinc-400 hover:text-white transition-colors"><Share2 size={24} /></button>
+          <button className="text-zinc-400 hover:text-white transition-colors"><MoreHorizontal size={24} /></button>
+        </div>
+
+        <div className="hidden md:flex items-center gap-4 w-48">
+          <Volume2 size={20} className="text-zinc-500" />
+          <input 
+            type="range" 
+            min="0" 
+            max="100" 
+            value={volume}
+            onChange={(e) => {
+              setVolume(parseInt(e.target.value));
+              if(audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100;
+            }}
+            className="flex-1 accent-accent bg-white/10 h-1 rounded-full appearance-none cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <main className="px-6 md:px-12 py-12 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* Left: Description & Info */}
+        <div className="lg:col-span-2 space-y-12">
+          <section>
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-6">Tentang Stasiun</h3>
+            <p className="text-zinc-400 leading-relaxed text-lg">
+              {radioData.description || "Selamat datang di kanal VisionStream Digital. Nikmati siaran berkualitas tinggi langsung dari studio pusat dengan teknologi audio termutakhir."}
+            </p>
+          </section>
+
+          {/* Related/Other Radios in category */}
+          <section>
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-6">Stasiun Lainnya di Kategori {radioData.category?.name}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {relatedRadios.map((radio: any) => (
+                <Link 
+                  key={radio.id} 
+                  href={`/radio/${radio.slug}`}
+                  className="flex items-center gap-4 p-3 bg-white/5 rounded-lg border border-transparent hover:border-white/10 hover:bg-white/10 transition-all group"
+                >
+                  <img src={radio.logoUrl} className="w-16 h-16 rounded object-cover" alt="" />
+                  <div className="flex-1">
+                    <p className="font-bold text-sm uppercase truncate group-hover:text-accent transition-colors">{radio.name}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Streaming Now</p>
+                  </div>
+                  <Play size={16} className="text-accent opacity-0 group-hover:opacity-100 transition-all" />
+                </Link>
+              ))}
+              {relatedRadios.length === 0 && <p className="text-xs text-zinc-600 uppercase tracking-widest italic font-bold">Tidak ada stasiun lain ditemukan.</p>}
             </div>
+          </section>
+        </div>
 
-            {/* Visual Player Controls */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6">
-              <button 
-                onClick={togglePlay}
-                className="w-24 h-24 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)]"
-              >
-                {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-2" />}
-              </button>
-              
-              <div className="flex flex-col gap-2 min-w-[200px]">
-                <div className="flex items-center gap-3 text-zinc-500">
-                  <Volume2 size={18} />
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={volume}
-                    onChange={(e) => {
-                      setVolume(parseInt(e.target.value));
-                      if(audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100;
-                    }}
-                    className="flex-1 accent-accent bg-white/10 h-1 rounded-full appearance-none cursor-pointer"
-                  />
+        {/* Right: Stats & Sidebar info */}
+        <div className="space-y-8">
+          <div className="bg-white/5 border border-white/5 p-8 rounded-2xl">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-accent mb-6">Broadcast Intel</h4>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-zinc-400">
+                  <Users size={16} />
+                  <span className="text-xs font-bold uppercase tracking-tighter">Pendengar</span>
                 </div>
+                <span className="font-mono text-sm">1.242</span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-center lg:justify-start gap-4 pt-4">
-              <button className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                <Heart size={20} />
-              </button>
-              <button className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
-                <Share2 size={20} />
-              </button>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-zinc-400">
+                  <Music2 size={16} />
+                  <span className="text-xs font-bold uppercase tracking-tighter">Bitrate</span>
+                </div>
+                <span className="font-mono text-sm">128 Kbps</span>
+              </div>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Hidden Audio Engine */}
-      <audio 
-        ref={audioRef} 
-        src={STREAM_URL} 
-        preload="none"
-        crossOrigin="anonymous"
-      />
-
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.05); opacity: 0.8; }
-        }
-      `}</style>
+      <audio ref={audioRef} src={STREAM_URL} preload="none" crossOrigin="anonymous" />
     </div>
   );
 }
