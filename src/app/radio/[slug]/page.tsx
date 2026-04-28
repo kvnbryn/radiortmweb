@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Play, Pause, Volume2, Share2, Users, Activity, Disc, ArrowLeft, Headphones } from "lucide-react";
+import { Play, Pause, Volume2, Share2, Users, Activity, Disc, Headphones } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 
@@ -11,6 +11,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
   const [radioData, setRadioData] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [branding, setBranding] = useState({ siteName: "" });
+  const [viewerCount, setViewerCount] = useState(0); // Dinamis
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const STREAM_URL = "http://141.11.25.59:8000/live";
@@ -20,11 +21,29 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
       if (json.success && json.data) setBranding({ siteName: json.data.siteName });
     });
 
-    fetch(`/api/radio?slug=${params.slug}`).then(res => res.json()).then(json => {
-      if (json.success) setRadioData(json.data);
-      setIsLoaded(true);
-    });
-  }, [params.slug]);
+    const fetchRadio = async () => {
+        const res = await fetch(`/api/radio?slug=${params.slug}`);
+        const json = await res.json();
+        if (json.success) {
+            setRadioData(json.data);
+            setViewerCount(json.data.viewers || 0);
+        }
+        setIsLoaded(true);
+    };
+    fetchRadio();
+
+    // Viewer Heartbeat (Interval 30 detik)
+    const interval = setInterval(async () => {
+        if (isPlaying) {
+            await fetch('/api/viewers/heartbeat', {
+                method: 'POST',
+                body: JSON.stringify({ slug: params.slug })
+            });
+        }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [params.slug, isPlaying]);
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -32,7 +51,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
       else {
         audioRef.current.load();
         audioRef.current.play().catch(() => {
-          alert("OFFLINE: Sinyal studio belum aktif.");
+          alert("Sinyal studio sedang offline.");
           setIsPlaying(false);
         });
       }
@@ -47,7 +66,7 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
   );
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white selection:bg-accent relative overflow-hidden">
+    <div className="min-h-screen bg-[#080808] text-white selection:bg-accent relative overflow-hidden font-sans">
       <Navbar />
       
       {/* Immersive Spotify Background */}
@@ -61,73 +80,63 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
         )}
       </div>
 
-      <main className="relative z-10 container mx-auto px-6 lg:px-20 pt-32 pb-20">
-        <div className="flex flex-col lg:flex-row items-center lg:items-end gap-10 lg:gap-14">
+      <main className="relative z-10 container mx-auto px-6 lg:px-20 pt-28 pb-10">
+        <div className="flex flex-col lg:flex-row items-center lg:items-end gap-10">
           
-          {/* Animated Artwork */}
+          {/* Cover Artwork */}
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="relative group"
+            className="relative"
           >
-            <div className={`absolute -inset-10 bg-accent/30 rounded-full blur-[100px] transition-all duration-1000 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
-            <div className="w-64 h-64 md:w-80 md:h-80 bg-zinc-900 border border-white/5 rounded-2xl overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] relative z-10">
+            <div className={`absolute -inset-10 bg-accent/20 rounded-full blur-[100px] transition-all duration-1000 ${isPlaying ? 'opacity-100' : 'opacity-0'}`} />
+            <div className="w-64 h-64 md:w-80 md:h-80 bg-zinc-900 border border-white/5 rounded-xl overflow-hidden shadow-2xl relative z-10">
               {radioData?.logoUrl ? (
-                <img src={radioData.logoUrl} className={`w-full h-full object-cover transition-transform duration-[20s] linear infinite ${isPlaying ? 'scale-110 rotate-3' : 'scale-100'}`} alt="" />
+                <img src={radioData.logoUrl} className={`w-full h-full object-cover transition-transform duration-[20s] linear infinite ${isPlaying ? 'scale-110' : 'scale-100'}`} alt="" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-zinc-950"><Disc size={100} className="text-zinc-800" /></div>
               )}
             </div>
           </motion.div>
 
-          {/* Identity Section */}
-          <div className="flex flex-col gap-6 text-center lg:text-left">
+          {/* Title & Info */}
+          <div className="flex flex-col gap-4 text-center lg:text-left">
             <motion.span 
-              initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-              className="text-[10px] font-black uppercase tracking-[0.5em] text-accent flex items-center justify-center lg:justify-start gap-2"
+              initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+              className="text-[10px] font-black uppercase tracking-[0.4em] text-accent flex items-center justify-center lg:justify-start gap-2"
             >
-              <Headphones size={12} /> Live Streaming
+              <Activity size={12} className="animate-pulse" /> Live Now
             </motion.span>
             <motion.h1 
-              initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}
-              className="text-7xl md:text-[120px] font-black tracking-[-0.05em] uppercase leading-[0.8] italic"
+              initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+              className="text-6xl md:text-9xl font-black tracking-[-0.05em] uppercase leading-none italic"
             >
-              {radioData?.name || "Station"}
+              {radioData?.name}
             </motion.h1>
             
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-              className="flex items-center justify-center lg:justify-start gap-8 text-zinc-500 text-[10px] font-bold uppercase tracking-widest"
-            >
-              <div className="flex items-center gap-2 border-r border-white/10 pr-8">
-                <Users size={14} className="text-accent" />
-                <span>1,242 Listeners</span>
-              </div>
+            <div className="flex items-center justify-center lg:justify-start gap-6 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
               <div className="flex items-center gap-2">
-                <Activity size={14} />
-                <span>128 KBPS High-Def</span>
+                <Users size={14} className="text-accent" />
+                <span>{viewerCount.toLocaleString()} Listeners</span>
               </div>
-            </motion.div>
+              <span className="w-1 h-1 bg-zinc-700 rounded-full" />
+              <span>{branding.siteName} Digital</span>
+            </div>
           </div>
         </div>
 
-        {/* Action Controller Bar */}
-        <motion.div 
-          initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
-          className="mt-16 flex flex-wrap items-center justify-center lg:justify-start gap-10"
-        >
+        {/* Action Controller - Cleaner & Tighter */}
+        <div className="mt-12 flex items-center justify-center lg:justify-start gap-8">
           <button 
             onClick={togglePlay}
-            className="w-20 h-20 rounded-full bg-accent text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl shadow-accent/50 group"
+            className="w-16 h-16 rounded-full bg-accent text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl shadow-accent/40"
           >
-            {isPlaying ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" className="ml-1" />}
+            {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
           </button>
           
-          <div className="flex items-center gap-6">
-            <button className="text-zinc-500 hover:text-white transition-colors"><Share2 size={24} /></button>
-          </div>
+          <button className="p-3 rounded-full bg-white/5 border border-white/5 text-zinc-400 hover:text-white transition-all"><Share2 size={20} /></button>
 
-          <div className="hidden md:flex items-center gap-4 w-64 group">
-            <Volume2 size={20} className="text-zinc-500 group-hover:text-accent transition-colors" />
+          <div className="hidden md:flex items-center gap-4 w-48 ml-4">
+            <Volume2 size={18} className="text-zinc-500" />
             <input 
               type="range" min="0" max="100" value={volume} 
               onChange={(e) => {
@@ -137,20 +146,6 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
               className="flex-1 accent-accent bg-white/5 h-1 appearance-none cursor-pointer rounded-full" 
             />
           </div>
-        </motion.div>
-
-        {/* Minimalist Spotify Stats Row */}
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-1 border-t border-white/5">
-           {[
-             { label: "Studio Hub", val: "Jakarta Pusat" },
-             { label: "Server Node", val: "Core-JKT-01" },
-             { label: "Stability", val: "99.9% Uptime" }
-           ].map((item, i) => (
-             <div key={i} className="p-10 bg-white/[0.01] hover:bg-white/[0.03] transition-all group border-r border-white/5 last:border-r-0">
-                <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-2">{item.label}</p>
-                <p className="text-xs font-bold text-zinc-400 group-hover:text-white transition-colors">{item.val}</p>
-             </div>
-           ))}
         </div>
       </main>
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Mic, MicOff, Play, Square, Radio as RadioIcon, 
-  Terminal, Activity, Headphones, Monitor, Sliders, AudioLines
+  Terminal, Activity, Headphones, Monitor, Sliders, AudioLines, AlertTriangle
 } from "lucide-react";
 
 export default function RadioBroadcastPage() {
@@ -13,20 +13,16 @@ export default function RadioBroadcastPage() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState("");
   const [audioLevel, setAudioLevel] = useState<number[]>(new Array(40).fill(0));
-  
-  // Individual Gain States (0 - 100)
   const [micVolume, setMicVolume] = useState(100);
-  const [systemVolume, setSystemVolume] = useState(70); // Default musik lebih pelan
-
+  const [systemVolume, setSystemVolume] = useState(70);
   const [branding, setBranding] = useState({ siteName: "SYSTEM" });
+  const [error, setError] = useState("");
 
-  // Web Audio Refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const micGainRef = useRef<GainNode | null>(null);
   const systemGainRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  
   const micStreamRef = useRef<MediaStream | null>(null);
   const systemStreamRef = useRef<MediaStream | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -47,7 +43,6 @@ export default function RadioBroadcastPage() {
     }
   }, []);
 
-  // Update Gain Real-time
   useEffect(() => {
     if (micGainRef.current) micGainRef.current.gain.value = micVolume / 100;
   }, [micVolume]);
@@ -60,10 +55,8 @@ export default function RadioBroadcastPage() {
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
       destinationRef.current = audioContextRef.current.createMediaStreamDestination();
-      
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
-      
       const visualSource = audioContextRef.current.createMediaStreamSource(destinationRef.current.stream);
       visualSource.connect(analyserRef.current);
       
@@ -95,11 +88,10 @@ export default function RadioBroadcastPage() {
         const source = audioContextRef.current!.createMediaStreamSource(stream);
         micGainRef.current = audioContextRef.current!.createGain();
         micGainRef.current.gain.value = micVolume / 100;
-        
         source.connect(micGainRef.current);
         micGainRef.current.connect(destinationRef.current!);
         setIsMicActive(true);
-      } catch (err) { alert("Mic Error"); }
+      } catch (err) { setError("Gagal akses Microphone."); }
     }
   };
 
@@ -113,22 +105,20 @@ export default function RadioBroadcastPage() {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         const audioTrack = stream.getAudioTracks()[0];
         if (!audioTrack) throw new Error("Audio not shared");
-
         systemStreamRef.current = new MediaStream([audioTrack]);
         const source = audioContextRef.current!.createMediaStreamSource(systemStreamRef.current);
         systemGainRef.current = audioContextRef.current!.createGain();
         systemGainRef.current.gain.value = systemVolume / 100;
-
         source.connect(systemGainRef.current);
         systemGainRef.current.connect(destinationRef.current!);
         setIsSystemAudioActive(true);
         stream.getVideoTracks().forEach(t => t.stop());
-      } catch (err) { alert("Pilih 'Share Audio' saat berbagi layar!"); }
+      } catch (err) { setError("Pilih 'Share Audio' saat berbagi layar!"); }
     }
   };
 
   const startOnAir = () => {
-    if (!isMicActive && !isSystemAudioActive) return alert("Aktifkan Input dulu!");
+    if (!isMicActive && !isSystemAudioActive) return alert("Aktifkan input audio terlebih dahulu.");
     const socket = new WebSocket(`ws://141.11.25.59:3001`);
     socketRef.current = socket;
     socket.onopen = () => {
@@ -139,6 +129,24 @@ export default function RadioBroadcastPage() {
       mediaRecorderRef.current.start(200);
       setIsOnAir(true);
     };
+    socket.onerror = () => setError("Koneksi ke server pusat gagal.");
+  };
+
+  // FIXED: Fungsi stop yang benar-benar mematikan segalanya
+  const stopOnAir = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+    // Hentikan hardware tracks untuk keamanan mutlak
+    if (micStreamRef.current) micStreamRef.current.getTracks().forEach(t => t.stop());
+    if (systemStreamRef.current) systemStreamRef.current.getTracks().forEach(t => t.stop());
+    
+    setIsMicActive(false);
+    setIsSystemAudioActive(false);
+    setIsOnAir(false);
   };
 
   return (
@@ -153,17 +161,25 @@ export default function RadioBroadcastPage() {
             <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mt-2">{branding.siteName.toUpperCase()} BROADCAST UNIT</p>
           </div>
         </div>
-        <button onClick={isOnAir ? () => setIsOnAir(false) : startOnAir} className={`h-16 px-14 font-black uppercase tracking-widest transition-all ${isOnAir ? 'bg-accent text-white shadow-[0_0_40px_rgba(229,9,20,0.3)]' : 'bg-white/5 border border-white/10 text-zinc-500 hover:text-white'}`}>
+        <button 
+          onClick={isOnAir ? stopOnAir : startOnAir} 
+          className={`h-16 px-14 font-black uppercase tracking-widest transition-all ${isOnAir ? 'bg-accent text-white shadow-[0_0_40px_rgba(229,9,20,0.3)]' : 'bg-white/5 border border-white/10 text-zinc-500 hover:text-white'}`}
+        >
           {isOnAir ? "STOP ON-AIR" : "GO ON-AIR"}
         </button>
       </div>
 
+      {error && (
+        <div className="bg-accent/10 border border-accent/20 p-4 text-[10px] font-bold text-accent uppercase tracking-widest flex items-center gap-3 animate-pulse">
+          <AlertTriangle size={14} /> {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-12 gap-6">
-        {/* Visualizer Area */}
         <div className="col-span-12 lg:col-span-8 bg-black border border-white/10 p-10 h-[400px] relative flex flex-col justify-end overflow-hidden group">
             <div className="absolute top-8 left-8 flex items-center gap-3">
               <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${isOnAir ? 'bg-accent text-white' : 'bg-white/10 text-zinc-700'}`}>
-                {isOnAir ? 'MASTER OUTPUT: LIVE' : 'PREVIEW MODE'}
+                {isOnAir ? 'LIVE TRANSMISSION' : 'PREVIEW MODE'}
               </span>
             </div>
             <div className="flex items-end gap-1.5 h-48 px-4">
@@ -173,20 +189,18 @@ export default function RadioBroadcastPage() {
             </div>
         </div>
 
-        {/* Mixer Faders */}
         <div className="col-span-12 lg:col-span-4 space-y-6 font-mono uppercase">
           <div className="bg-surface border border-white/5 p-8 flex flex-col gap-8">
             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                <Sliders size={16} className="text-accent" />
-               <h3 className="text-xs font-black tracking-widest">Independent Mixing</h3>
+               <h3 className="text-xs font-black tracking-widest italic">Mixing Console</h3>
             </div>
             
-            {/* MIC CHANNEL */}
             <div className="space-y-4">
                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Mic size={14} className={isMicActive ? 'text-accent' : 'text-zinc-600'} />
-                    <span className="text-[10px] font-bold">Microphone</span>
+                    <span className="text-[10px] font-bold tracking-tighter">Vocal Channel</span>
                   </div>
                   <button onClick={toggleMic} className={`text-[9px] px-3 py-1 border ${isMicActive ? 'bg-accent border-accent text-white' : 'border-white/10 text-zinc-600'}`}>
                     {isMicActive ? 'ON' : 'OFF'}
@@ -195,12 +209,11 @@ export default function RadioBroadcastPage() {
                <input type="range" value={micVolume} onChange={e => setMicVolume(parseInt(e.target.value))} className="w-full accent-accent h-1 bg-white/5 appearance-none cursor-pointer" />
             </div>
 
-            {/* SYSTEM AUDIO CHANNEL */}
             <div className="space-y-4">
                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Monitor size={14} className={isSystemAudioActive ? 'text-accent' : 'text-zinc-600'} />
-                    <span className="text-[10px] font-bold">Internal Audio</span>
+                    <span className="text-[10px] font-bold tracking-tighter">System Audio</span>
                   </div>
                   <button onClick={toggleSystemAudio} className={`text-[9px] px-3 py-1 border ${isSystemAudioActive ? 'bg-accent border-accent text-white' : 'border-white/10 text-zinc-600'}`}>
                     {isSystemAudioActive ? 'ON' : 'OFF'}
