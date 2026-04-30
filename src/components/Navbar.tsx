@@ -84,7 +84,6 @@ export default function Navbar() {
     else router.push("/login");
   };
 
-  // REVISI EXPERT: Semua class text-accent sekarang pakai warna Red Cinematic
   return (
     <>
       <nav className={`fixed top-0 z-50 w-full transition-all duration-500 ${isScrolled ? "bg-black/95 backdrop-blur-md border-b border-white/5 py-3 shadow-2xl" : "bg-gradient-to-b from-black/80 to-transparent py-5"}`}>
@@ -105,7 +104,8 @@ export default function Navbar() {
             <div className="hidden items-center gap-7 text-sm font-bold text-gray-300 md:flex">
               <Link href="/" className={`transition-colors ${pathname === "/" ? "text-white" : "hover:text-red-500"}`}>Beranda</Link>
               <Link href="/tv" className={`transition-colors ${pathname.startsWith("/tv") ? "text-white" : "hover:text-red-500"}`}>TV Live</Link>
-              <Link href="/radio" className={`transition-colors ${pathname.startsWith("/radio") ? "text-white" : "hover:text-red-500"}`}>Radio Online</Link>
+              {/* REVISI: Langsung tembak ke /radio/radiortm */}
+              <Link href="/radio/radiortm" className={`transition-colors ${pathname.startsWith("/radio") ? "text-white" : "hover:text-red-500"}`}>Radio Online</Link>
               <Link href="/category" className={`transition-colors ${pathname.startsWith("/category") ? "text-white" : "hover:text-red-500"}`}>Kategori</Link>
             </div>
           </div>
@@ -181,7 +181,8 @@ export default function Navbar() {
             <div className="flex flex-col gap-6 p-8 text-lg font-bold">
               <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className={pathname === "/" ? "text-white" : "text-zinc-500 hover:text-red-500"}>Beranda</Link>
               <Link href="/tv" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/tv") ? "text-white" : "text-zinc-500 hover:text-red-500"}>TV Live</Link>
-              <Link href="/radio" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/radio") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Radio Online</Link>
+              {/* REVISI: Langsung tembak ke /radio/radiortm */}
+              <Link href="/radio/radiortm" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/radio") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Radio Online</Link>
               <Link href="/category" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/category") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Kategori</Link>
               <Link href="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-zinc-500 hover:text-white text-sm pt-4 border-t border-white/5">Syarat & Kebijakan</Link>
             </div>
