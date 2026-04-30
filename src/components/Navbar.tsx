@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { 
-  Search, User, Menu, X, PlayCircle, Mic2, 
-  LogOut, ShieldCheck, Mail, ChevronRight, Loader2, Info
+  Search, User, Menu, X, PlayCircle, 
+  LogOut, ShieldCheck, ChevronRight, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -20,6 +20,10 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Search Live Preview States
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -28,6 +32,7 @@ export default function Navbar() {
   const [settings, setSettings] = useState({ siteName: "", logoUrl: "" });
   const [isBrandingLoaded, setIsBrandingLoaded] = useState(false);
 
+  // Fetch Auth & Settings
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -50,18 +55,20 @@ export default function Navbar() {
     fetchData();
   }, []);
 
+  // Handle Scroll Transparency
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock Body Scroll when Modal Open
   useEffect(() => {
     if (isMobileMenuOpen || isSearchOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "unset";
   }, [isMobileMenuOpen, isSearchOpen]);
 
-  // Handle click outside untuk User Modal
+  // Click Outside to close User Modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userModalRef.current && !userModalRef.current.contains(event.target as Node)) {
@@ -72,7 +79,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Handle focus input saat modal search terbuka
+  // Auto Focus on Search Input
   useEffect(() => {
     if (isSearchOpen && searchInputRef.current) {
       setTimeout(() => {
@@ -80,6 +87,59 @@ export default function Navbar() {
       }, 100);
     }
   }, [isSearchOpen]);
+
+  // Live Search Logic (Debounced)
+  useEffect(() => {
+    const fetchSearchResults = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        // Ambil data dari API TV dan Radio sekaligus
+        const [radioRes, tvRes] = await Promise.all([
+          fetch('/api/radio').catch(() => ({ json: () => ({ success: false, data: [] }) })),
+          fetch('/api/tv').catch(() => ({ json: () => ({ success: false, data: [] }) }))
+        ]);
+        
+        const radioData = await (radioRes as any).json();
+        const tvData = await (tvRes as any).json();
+
+        let results: any[] = [];
+        
+        if (radioData.success && radioData.data) {
+            const filteredRadios = radioData.data.filter((r: any) => 
+                r.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (r.description && r.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            ).map((r: any) => ({ ...r, type: 'radio', url: `/radio/${r.slug}` }));
+            results = [...results, ...filteredRadios];
+        }
+
+        if (tvData.success && tvData.data) {
+            const filteredTVs = tvData.data.filter((t: any) => 
+                t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            ).map((t: any) => ({ ...t, type: 'tv', url: `/tv/${t.slug}` }));
+            results = [...results, ...filteredTVs];
+        }
+
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Search failed", error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    // Delay 300ms agar API tidak di-spam setiap ngetik huruf
+    const delayDebounceFn = setTimeout(() => {
+      fetchSearchResults();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const handleLogout = async () => {
     try {
@@ -96,11 +156,7 @@ export default function Navbar() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setIsSearchOpen(false);
-      setSearchQuery("");
-    }
+    // Mencegah reload kalau dienter, karena pakai Live Preview
   };
 
   return (
@@ -186,26 +242,27 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* SEARCH MODAL OVERLAY */}
+      {/* SEARCH MODAL OVERLAY DENGAN LIVE PREVIEW */}
       <AnimatePresence>
         {isSearchOpen && (
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }} 
-            className="fixed inset-0 z-[100] flex items-start justify-center bg-black/90 backdrop-blur-md pt-32 px-6"
+            className="fixed inset-0 z-[100] flex items-start justify-center bg-black/80 backdrop-blur-md pt-28 px-6 overflow-hidden"
           >
             {/* Background area close modal saat diklik */}
-            <div className="absolute inset-0 z-0" onClick={() => setIsSearchOpen(false)} />
+            <div className="absolute inset-0 z-0" onClick={() => { setIsSearchOpen(false); setSearchQuery(""); setSearchResults([]); }} />
             
             <motion.div 
               initial={{ y: -40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -40, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-3xl relative z-10"
+              className="w-full max-w-3xl relative z-10 flex flex-col max-h-[80vh]"
             >
-              <form onSubmit={handleSearchSubmit} className="relative group">
+              {/* Form Pencarian */}
+              <form onSubmit={handleSearchSubmit} className="relative group shrink-0">
                 <Search size={24} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-red-500 transition-colors" />
                 <input
                   ref={searchInputRef}
@@ -213,15 +270,81 @@ export default function Navbar() {
                   placeholder="Cari saluran radio, siaran tv, dll..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-zinc-900/80 border border-white/10 rounded-full py-5 pl-16 pr-16 text-white placeholder:text-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-lg shadow-2xl"
+                  className="w-full bg-[#111] border border-white/10 rounded-2xl py-5 pl-16 pr-16 text-white placeholder:text-zinc-600 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-lg shadow-2xl"
                 />
-                <button type="button" onClick={() => setIsSearchOpen(false)} className="absolute right-6 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-500 transition-colors p-2 bg-white/5 rounded-full hover:bg-white/10">
+                <button type="button" onClick={() => { setIsSearchOpen(false); setSearchQuery(""); setSearchResults([]); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-500 transition-colors p-2 bg-white/5 rounded-full hover:bg-white/10">
                   <X size={20} />
                 </button>
               </form>
-              <div className="mt-6 text-center text-xs text-zinc-500 font-mono tracking-widest uppercase">
-                Tekan Enter untuk mencari
-              </div>
+
+              {/* Kontainer Hasil Live Preview */}
+              {searchQuery.trim() && (
+                <div className="mt-4 bg-[#111] border border-white/10 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex-1 overflow-y-auto custom-scrollbar">
+                  {isSearching ? (
+                    <div className="flex justify-center items-center py-12">
+                       <Loader2 size={32} className="animate-spin text-red-600" />
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <motion.div 
+                      initial="hidden" 
+                      animate="visible" 
+                      variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+                      className="flex flex-col"
+                    >
+                      {searchResults.map((item, index) => (
+                        <motion.div
+                          key={`${item.type}-${item.id}`}
+                          variants={{
+                            hidden: { opacity: 0, x: -20 },
+                            visible: { opacity: 1, x: 0 }
+                          }}
+                        >
+                          <Link 
+                            href={item.url}
+                            onClick={() => { setIsSearchOpen(false); setSearchQuery(""); setSearchResults([]); }}
+                            className="flex items-center gap-5 p-4 hover:bg-white/5 transition-all group"
+                          >
+                            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0">
+                              {item.thumbnail ? (
+                                <img src={item.thumbnail} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-2 transition-transform duration-500" />
+                              ) : (
+                                 <div className="w-full h-full flex items-center justify-center bg-black">
+                                   <PlayCircle size={28} className="text-zinc-600" />
+                                 </div>
+                              )}
+                              {item.status === 'LIVE' && (
+                                <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[8px] font-black tracking-widest px-2 py-0.5 rounded shadow-[0_0_10px_rgba(220,38,38,0.8)] uppercase">LIVE</div>
+                              )}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className={`text-[9px] font-black tracking-widest uppercase px-2 py-0.5 border rounded ${item.type === 'radio' ? 'border-amber-500/30 bg-amber-500/10 text-amber-500' : 'border-blue-500/30 bg-blue-500/10 text-blue-500'}`}>
+                                  {item.type}
+                                </span>
+                              </div>
+                              <h4 className="text-lg font-black text-white truncate group-hover:text-red-500 transition-colors">{item.name}</h4>
+                              <p className="text-xs text-zinc-500 truncate mt-1">{item.description || "Siaran digital streaming langsung"}</p>
+                            </div>
+                            
+                            <ChevronRight size={24} className="text-zinc-600 group-hover:text-red-500 group-hover:translate-x-1 transition-all mr-2" />
+                          </Link>
+                          
+                          {/* Pembatas Antar Stream */}
+                          {index < searchResults.length - 1 && <div className="h-[1px] w-[90%] mx-auto bg-white/5" />}
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Search size={28} className="text-zinc-600" />
+                      </div>
+                      <p className="text-zinc-400 text-sm font-bold">Tidak menemukan hasil untuk <span className="text-white">"{searchQuery}"</span></p>
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
