@@ -28,6 +28,10 @@ export default function RadioBroadcastPage() {
   const socketRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const animationRef = useRef<number | null>(null);
+  
+  // FITUR EXPERT: Buffer antrian untuk Adaptive Buffering & deteksi stop manual
+  const bufferQueue = useRef<Blob[]>([]);
+  const isManualStopRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/settings").then(res => res.json()).then(json => {
@@ -117,36 +121,76 @@ export default function RadioBroadcastPage() {
     }
   };
 
+  // REVISI EXPERT: Terintegrasi dengan UI lo, plus Auto-Reconnect & Buffering
   const startOnAir = () => {
     if (!isMicActive && !isSystemAudioActive) return alert("Aktifkan input audio terlebih dahulu.");
-    const socket = new WebSocket(`ws://141.11.25.59:3001`);
-    socketRef.current = socket;
-    socket.onopen = () => {
-      mediaRecorderRef.current = new MediaRecorder(destinationRef.current!.stream, { mimeType: 'audio/webm;codecs=opus' });
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) socket.send(e.data);
+    
+    isManualStopRef.current = false; // Reset status manual stop
+
+    const connectWebSocket = () => {
+      const socket = new WebSocket(`ws://141.11.25.59:3001`);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        setError(""); // Clear error jika connect ulang sukses
+        setIsOnAir(true);
+        
+        // Inisialisasi MediaRecorder hanya jika belum ada atau mati
+        if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
+          mediaRecorderRef.current = new MediaRecorder(destinationRef.current!.stream, { mimeType: 'audio/webm;codecs=opus' });
+          
+          mediaRecorderRef.current.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+              if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                // Sinyal stabil: Kirim antrian yang tertunda dulu
+                if (bufferQueue.current.length > 0) {
+                  bufferQueue.current.forEach(item => socketRef.current!.send(item));
+                  bufferQueue.current = [];
+                }
+                socketRef.current.send(e.data);
+              } else {
+                // Sinyal ngedrop: Simpan audio ke antrian biar pendengar ga dapet blank/putus
+                bufferQueue.current.push(e.data);
+              }
+            }
+          };
+          mediaRecorderRef.current.start(1000); // Timeslice 1 detik agar buffer rapi
+        }
       };
-      mediaRecorderRef.current.start(200);
-      setIsOnAir(true);
+
+      socket.onclose = () => {
+        // Jika terputus BUKAN karena dipencet "Stop On-Air", coba reconnect
+        if (!isManualStopRef.current) {
+          setError("Sinyal Tidak Stabil - Mencoba Hubung Kembali...");
+          setTimeout(connectWebSocket, 2000);
+        }
+      };
+
+      socket.onerror = () => setError("Koneksi ke server pusat gagal.");
     };
-    socket.onerror = () => setError("Koneksi ke server pusat gagal.");
+
+    connectWebSocket();
   };
 
-  // FIXED: Fungsi stop yang benar-benar mematikan segalanya
   const stopOnAir = () => {
+    isManualStopRef.current = true; // Tandai bahwa admin yang mematikan, jadi jangan auto-reconnect
+    setIsOnAir(false);
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
     if (socketRef.current) {
       socketRef.current.close();
     }
+    
+    bufferQueue.current = []; // Bersihkan cache antrian
+    
     // Hentikan hardware tracks untuk keamanan mutlak
     if (micStreamRef.current) micStreamRef.current.getTracks().forEach(t => t.stop());
     if (systemStreamRef.current) systemStreamRef.current.getTracks().forEach(t => t.stop());
     
     setIsMicActive(false);
     setIsSystemAudioActive(false);
-    setIsOnAir(false);
   };
 
   return (

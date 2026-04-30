@@ -6,15 +6,35 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { identifier, channelId, channelType } = body;
 
+    // 1. Validasi Input yang lebih ketat
     if (!identifier || !channelId || !channelType) {
-      return NextResponse.json({ success: false, message: "Missing params" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Invalid parameters" }, { status: 400 });
     }
 
     const cId = parseInt(channelId);
-    // PERBAIKAN: Pakai lowercase untuk keamanan komparasi
+    if (isNaN(cId)) return NextResponse.json({ success: false }, { status: 400 });
+
     const safeChannelType = channelType.toLowerCase();
 
-    // 1. Update atau Create session user ini
+    // 2. Proteksi Abuse: Cek apakah user ini terlalu sering kirim request (Rate Limit simple)
+    // Kita cek apakah session terakhir kurang dari 10 detik yang lalu
+    const lastSession = await prisma.viewerSession.findUnique({
+        where: {
+            identifier_channelId_channelType: {
+                identifier,
+                channelId: cId,
+                channelType: safeChannelType,
+            },
+        },
+        select: { lastSeen: true }
+    });
+
+    if (lastSession && (new Date().getTime() - new Date(lastSession.lastSeen).getTime() < 10000)) {
+        // Jika request kurang dari 10 detik, abaikan update DB tapi kembalikan sukses biar ga boros bandwidth
+        return NextResponse.json({ success: true, message: "Throttled" }, { status: 200 });
+    }
+
+    // 3. Update atau Create session
     await prisma.viewerSession.upsert({
       where: {
         identifier_channelId_channelType: {
@@ -23,9 +43,7 @@ export async function POST(request: NextRequest) {
           channelType: safeChannelType,
         },
       },
-      update: {
-        lastSeen: new Date(),
-      },
+      update: { lastSeen: new Date() },
       create: {
         identifier,
         channelId: cId,
@@ -33,56 +51,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 2. Cleanup: Hapus session yang sudah tidak update lebih dari 45 detik
+    // 4. Cleanup Sesi Expired (Lebih dari 45 detik tidak ada kabar)
     const expireTime = new Date(Date.now() - 45 * 1000);
     await prisma.viewerSession.deleteMany({
-      where: {
-        lastSeen: {
-          lt: expireTime,
-        },
-      },
+      where: { lastSeen: { lt: expireTime } },
     });
 
-    // 3. Hitung jumlah viewer real-time saat ini
+    // 5. Hitung Real-time Viewers
     const activeViewers = await prisma.viewerSession.count({
       where: {
         channelId: cId,
         channelType: safeChannelType,
-        lastSeen: {
-          gt: expireTime,
-        },
+        lastSeen: { gt: expireTime },
       },
     });
 
-    // 4. Update data Current Viewers & Peak Viewers (Rekor Tertinggi)
-    // PERBAIKAN: Menggunakan Math.max yang lebih presisi dan menghindari nilai null
+    // 6. Update Stats Channel (Current & Peak Viewers)
     if (safeChannelType === "tv") {
       const tv = await prisma.tvChannel.findUnique({ where: { id: cId }, select: { peakViewers: true } });
-      const currentPeak = tv?.peakViewers || 0;
-      const newPeak = Math.max(currentPeak, activeViewers);
-
+      const newPeak = Math.max(tv?.peakViewers || 0, activeViewers);
       await prisma.tvChannel.update({
         where: { id: cId },
-        data: { 
-          viewers: activeViewers,
-          peakViewers: newPeak
-        }
+        data: { viewers: activeViewers, peakViewers: newPeak }
       });
     } else if (safeChannelType === "radio") {
       const radio = await prisma.radioChannel.findUnique({ where: { id: cId }, select: { peakListeners: true } });
-      const currentPeak = radio?.peakListeners || 0;
-      const newPeak = Math.max(currentPeak, activeViewers);
-
+      const newPeak = Math.max(radio?.peakListeners || 0, activeViewers);
       await prisma.radioChannel.update({
         where: { id: cId },
-        data: { 
-          listeners: activeViewers,
-          peakListeners: newPeak
-        }
+        data: { listeners: activeViewers, peakListeners: newPeak }
       });
     }
 
-    // 5. Simpan histori untuk grafik (Dibatasi 1 data per menit per channel biar DB aman)
+    // 7. Simpan histori untuk grafik (Dibatasi 1 data per menit per channel biar DB aman)
     const ONE_MINUTE = 60 * 1000;
     const lastHistory = await prisma.viewerHistory.findFirst({
       where: { channelId: cId, channelType: safeChannelType },
@@ -99,10 +100,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      viewers: activeViewers 
-    }, { status: 200 });
+    return NextResponse.json({ success: true, viewers: activeViewers }, { status: 200 });
 
   } catch (error) {
     console.error("Heartbeat Error:", error);
