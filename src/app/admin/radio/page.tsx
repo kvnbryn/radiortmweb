@@ -29,7 +29,7 @@ export default function RadioBroadcastPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const animationRef = useRef<number | null>(null);
   
-  // FITUR EXPERT: Buffer antrian untuk Adaptive Buffering & deteksi stop manual
+  // Buffer antrian untuk Adaptive Buffering & deteksi stop manual
   const bufferQueue = useRef<Blob[]>([]);
   const isManualStopRef = useRef(false);
 
@@ -121,45 +121,40 @@ export default function RadioBroadcastPage() {
     }
   };
 
-  // REVISI EXPERT: Terintegrasi dengan UI lo, plus Auto-Reconnect & Buffering
   const startOnAir = () => {
     if (!isMicActive && !isSystemAudioActive) return alert("Aktifkan input audio terlebih dahulu.");
     
-    isManualStopRef.current = false; // Reset status manual stop
+    isManualStopRef.current = false;
 
     const connectWebSocket = () => {
       const socket = new WebSocket(`ws://141.11.25.59:3001`);
       socketRef.current = socket;
 
       socket.onopen = () => {
-        setError(""); // Clear error jika connect ulang sukses
+        setError("");
         setIsOnAir(true);
         
-        // Inisialisasi MediaRecorder hanya jika belum ada atau mati
         if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
           mediaRecorderRef.current = new MediaRecorder(destinationRef.current!.stream, { mimeType: 'audio/webm;codecs=opus' });
           
           mediaRecorderRef.current.ondataavailable = (e) => {
             if (e.data.size > 0) {
               if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-                // Sinyal stabil: Kirim antrian yang tertunda dulu
                 if (bufferQueue.current.length > 0) {
                   bufferQueue.current.forEach(item => socketRef.current!.send(item));
                   bufferQueue.current = [];
                 }
                 socketRef.current.send(e.data);
               } else {
-                // Sinyal ngedrop: Simpan audio ke antrian biar pendengar ga dapet blank/putus
                 bufferQueue.current.push(e.data);
               }
             }
           };
-          mediaRecorderRef.current.start(1000); // Timeslice 1 detik agar buffer rapi
+          mediaRecorderRef.current.start(1000);
         }
       };
 
       socket.onclose = () => {
-        // Jika terputus BUKAN karena dipencet "Stop On-Air", coba reconnect
         if (!isManualStopRef.current) {
           setError("Sinyal Tidak Stabil - Mencoba Hubung Kembali...");
           setTimeout(connectWebSocket, 2000);
@@ -173,7 +168,7 @@ export default function RadioBroadcastPage() {
   };
 
   const stopOnAir = () => {
-    isManualStopRef.current = true; // Tandai bahwa admin yang mematikan, jadi jangan auto-reconnect
+    isManualStopRef.current = true;
     setIsOnAir(false);
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -183,9 +178,8 @@ export default function RadioBroadcastPage() {
       socketRef.current.close();
     }
     
-    bufferQueue.current = []; // Bersihkan cache antrian
+    bufferQueue.current = [];
     
-    // Hentikan hardware tracks untuk keamanan mutlak
     if (micStreamRef.current) micStreamRef.current.getTracks().forEach(t => t.stop());
     if (systemStreamRef.current) systemStreamRef.current.getTracks().forEach(t => t.stop());
     
@@ -195,75 +189,110 @@ export default function RadioBroadcastPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-surface p-8 border border-white/5 border-l-4 border-l-accent flex items-center justify-between shadow-2xl">
+      <div className="bg-surface p-8 border border-white/5 border-l-4 border-l-accent flex items-center justify-between shadow-2xl rounded-xl">
         <div className="flex items-center gap-6">
-          <div className={`h-16 w-16 flex items-center justify-center border ${isOnAir ? 'bg-accent/10 border-accent animate-pulse' : 'bg-white/5 border-white/10'}`}>
-            <RadioIcon size={32} className={isOnAir ? 'text-accent' : 'text-zinc-800'} />
+          <div className={`h-16 w-16 flex items-center justify-center rounded-xl border transition-all duration-500 ${isOnAir ? 'bg-accent/10 border-accent animate-pulse shadow-[0_0_20px_rgba(229,9,20,0.2)]' : 'bg-white/5 border-white/10'}`}>
+            <RadioIcon size={32} className={isOnAir ? 'text-accent' : 'text-zinc-500'} />
           </div>
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight italic">STUDIO <span className="text-accent">CONSOLE</span></h1>
-            <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mt-2">{branding.siteName.toUpperCase()} BROADCAST UNIT</p>
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-1">{branding.siteName.toUpperCase()} BROADCAST UNIT</p>
           </div>
         </div>
         <button 
           onClick={isOnAir ? stopOnAir : startOnAir} 
-          className={`h-16 px-14 font-black uppercase tracking-widest transition-all ${isOnAir ? 'bg-accent text-white shadow-[0_0_40px_rgba(229,9,20,0.3)]' : 'bg-white/5 border border-white/10 text-zinc-500 hover:text-white'}`}
+          className={`h-16 px-14 rounded-xl font-black uppercase tracking-widest transition-all duration-300 ${isOnAir ? 'bg-accent text-white shadow-[0_0_40px_rgba(229,9,20,0.4)] hover:bg-accent/90' : 'bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'}`}
         >
           {isOnAir ? "STOP ON-AIR" : "GO ON-AIR"}
         </button>
       </div>
 
       {error && (
-        <div className="bg-accent/10 border border-accent/20 p-4 text-[10px] font-bold text-accent uppercase tracking-widest flex items-center gap-3 animate-pulse">
-          <AlertTriangle size={14} /> {error}
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl text-xs font-bold text-red-500 uppercase tracking-widest flex items-center gap-3 animate-pulse">
+          <AlertTriangle size={16} /> {error}
         </div>
       )}
 
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-12 lg:col-span-8 bg-black border border-white/10 p-10 h-[400px] relative flex flex-col justify-end overflow-hidden group">
-            <div className="absolute top-8 left-8 flex items-center gap-3">
-              <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${isOnAir ? 'bg-accent text-white' : 'bg-white/10 text-zinc-700'}`}>
-                {isOnAir ? 'LIVE TRANSMISSION' : 'PREVIEW MODE'}
+        {/* REVISI EXPERT: Professional Waveform Monitor */}
+        <div className="col-span-12 lg:col-span-8 bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 h-[400px] relative flex flex-col justify-between overflow-hidden shadow-2xl group">
+            
+            {/* Ambient Background Glow */}
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-accent/20 rounded-full blur-[140px] transition-opacity duration-1000 pointer-events-none ${isOnAir ? 'opacity-100' : 'opacity-0'}`} />
+            
+            {/* Top Indicator Bar */}
+            <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4">
+              <span className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md transition-all ${isOnAir ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-zinc-500 border border-white/10'}`}>
+                {isOnAir ? <><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,1)]" /> LIVE TRANSMISSION</> : <><Square size={10} /> PREVIEW MODE</>}
               </span>
+              <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-mono font-bold tracking-widest">
+                <span>FREQ: 48kHz</span>
+                <span className="w-1 h-1 rounded-full bg-zinc-700" />
+                <span className={isOnAir ? "text-accent transition-colors" : ""}>BITRATE: 192kbps</span>
+              </div>
             </div>
-            <div className="flex items-end gap-1.5 h-48 px-4">
-              {audioLevel.map((level, i) => (
-                <div key={i} className={`flex-1 transition-all duration-75 ${level > 180 ? 'bg-accent' : 'bg-white/5'}`} style={{ height: `${Math.max(2, (level / 255) * 100)}%`, opacity: 1 - (i * 0.015) }} />
-              ))}
+
+            {/* Centered Symmetrical Waveform */}
+            <div className="relative z-10 flex items-center justify-center gap-1.5 h-full px-4 w-full mt-4">
+              {audioLevel.map((level, i) => {
+                const heightPct = Math.max(2, (level / 255) * 100);
+                const isHigh = level > 180;
+                const isMedium = level > 100;
+                
+                return (
+                  <div 
+                    key={i} 
+                    className={`flex-1 w-full rounded-full transition-all duration-[50ms] ease-out ${
+                      isHigh ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 
+                      isMedium ? 'bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.5)]' : 
+                      'bg-zinc-700/40'
+                    }`} 
+                    style={{ 
+                      height: `${heightPct}%`, 
+                      opacity: isOnAir ? 1 : 0.3 + (level/255) * 0.7 
+                    }} 
+                  />
+                );
+              })}
             </div>
         </div>
 
+        {/* Mixing Console Panel */}
         <div className="col-span-12 lg:col-span-4 space-y-6 font-mono uppercase">
-          <div className="bg-surface border border-white/5 p-8 flex flex-col gap-8">
+          <div className="bg-surface border border-white/5 rounded-2xl p-8 flex flex-col gap-8 shadow-xl">
             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-               <Sliders size={16} className="text-accent" />
-               <h3 className="text-xs font-black tracking-widest italic">Mixing Console</h3>
+               <Sliders size={18} className="text-accent" />
+               <h3 className="text-sm font-black tracking-widest italic">Mixing Console</h3>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-5">
                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Mic size={14} className={isMicActive ? 'text-accent' : 'text-zinc-600'} />
-                    <span className="text-[10px] font-bold tracking-tighter">Vocal Channel</span>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${isMicActive ? 'bg-accent/20 text-accent' : 'bg-white/5 text-zinc-600'}`}>
+                      <Mic size={16} />
+                    </div>
+                    <span className="text-[11px] font-bold tracking-tighter">Vocal Channel</span>
                   </div>
-                  <button onClick={toggleMic} className={`text-[9px] px-3 py-1 border ${isMicActive ? 'bg-accent border-accent text-white' : 'border-white/10 text-zinc-600'}`}>
+                  <button onClick={toggleMic} className={`text-[10px] px-4 py-1.5 rounded-md font-bold border transition-all ${isMicActive ? 'bg-accent border-accent text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' : 'bg-transparent border-white/10 text-zinc-500 hover:text-white'}`}>
                     {isMicActive ? 'ON' : 'OFF'}
                   </button>
                </div>
-               <input type="range" value={micVolume} onChange={e => setMicVolume(parseInt(e.target.value))} className="w-full accent-accent h-1 bg-white/5 appearance-none cursor-pointer" />
+               <input type="range" value={micVolume} onChange={e => setMicVolume(parseInt(e.target.value))} className="w-full accent-accent h-1.5 bg-white/10 appearance-none cursor-pointer rounded-full" />
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Monitor size={14} className={isSystemAudioActive ? 'text-accent' : 'text-zinc-600'} />
-                    <span className="text-[10px] font-bold tracking-tighter">System Audio</span>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${isSystemAudioActive ? 'bg-accent/20 text-accent' : 'bg-white/5 text-zinc-600'}`}>
+                      <Monitor size={16} />
+                    </div>
+                    <span className="text-[11px] font-bold tracking-tighter">System Audio</span>
                   </div>
-                  <button onClick={toggleSystemAudio} className={`text-[9px] px-3 py-1 border ${isSystemAudioActive ? 'bg-accent border-accent text-white' : 'border-white/10 text-zinc-600'}`}>
+                  <button onClick={toggleSystemAudio} className={`text-[10px] px-4 py-1.5 rounded-md font-bold border transition-all ${isSystemAudioActive ? 'bg-accent border-accent text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' : 'bg-transparent border-white/10 text-zinc-500 hover:text-white'}`}>
                     {isSystemAudioActive ? 'ON' : 'OFF'}
                   </button>
                </div>
-               <input type="range" value={systemVolume} onChange={e => setSystemVolume(parseInt(e.target.value))} className="w-full accent-accent h-1 bg-white/5 appearance-none cursor-pointer" />
+               <input type="range" value={systemVolume} onChange={e => setSystemVolume(parseInt(e.target.value))} className="w-full accent-accent h-1.5 bg-white/10 appearance-none cursor-pointer rounded-full" />
             </div>
           </div>
         </div>
