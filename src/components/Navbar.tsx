@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   Search, User, Menu, X, PlayCircle, Mic2, 
   LogOut, ShieldCheck, Mail, ChevronRight, Loader2, Info
@@ -13,6 +13,7 @@ interface UserData { username: string; email: string; role: string; }
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -24,7 +25,6 @@ export default function Navbar() {
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const userModalRef = useRef<HTMLDivElement>(null);
 
-  // FIX FLICKER: Initial state dikosongkan
   const [settings, setSettings] = useState({ siteName: "", logoUrl: "" });
   const [isBrandingLoaded, setIsBrandingLoaded] = useState(false);
 
@@ -61,7 +61,6 @@ export default function Navbar() {
     else document.body.style.overflow = "unset";
   }, [isMobileMenuOpen, isSearchOpen]);
 
-  // Fungsi buat nutup modal user kalau klik di luar area modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userModalRef.current && !userModalRef.current.contains(event.target as Node)) {
@@ -85,6 +84,7 @@ export default function Navbar() {
     else router.push("/login");
   };
 
+  // REVISI EXPERT: Semua class text-accent sekarang pakai warna Red Cinematic
   return (
     <>
       <nav className={`fixed top-0 z-50 w-full transition-all duration-500 ${isScrolled ? "bg-black/95 backdrop-blur-md border-b border-white/5 py-3 shadow-2xl" : "bg-gradient-to-b from-black/80 to-transparent py-5"}`}>
@@ -96,31 +96,30 @@ export default function Navbar() {
               ) : settings.logoUrl ? (
                 <img src={settings.logoUrl} alt={settings.siteName} className="h-9 object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" />
               ) : (
-                <span className="text-2xl font-black tracking-tighter text-accent uppercase italic drop-shadow-[0_0_10px_rgba(var(--accent-rgb),0.7)]">
+                <span className="text-2xl font-black tracking-tighter text-red-600 uppercase italic drop-shadow-[0_0_10px_rgba(220,38,38,0.7)]">
                   {settings.siteName.split(' ')[0]}<span className="text-white">{settings.siteName.split(' ')[1] || ""}</span>
                 </span>
               )}
             </Link>
+            
             <div className="hidden items-center gap-7 text-sm font-bold text-gray-300 md:flex">
-              <Link href="/" className="hover:text-white transition-colors">Beranda</Link>
-              <Link href="/tv" className="hover:text-white transition-colors">TV Live</Link>
-              <Link href="/radio" className="hover:text-white transition-colors">Radio Online</Link>
-              <Link href="/category" className="hover:text-white transition-colors">Kategori</Link>
+              <Link href="/" className={`transition-colors ${pathname === "/" ? "text-white" : "hover:text-red-500"}`}>Beranda</Link>
+              <Link href="/tv" className={`transition-colors ${pathname.startsWith("/tv") ? "text-white" : "hover:text-red-500"}`}>TV Live</Link>
+              <Link href="/radio" className={`transition-colors ${pathname.startsWith("/radio") ? "text-white" : "hover:text-red-500"}`}>Radio Online</Link>
+              <Link href="/category" className={`transition-colors ${pathname.startsWith("/category") ? "text-white" : "hover:text-red-500"}`}>Kategori</Link>
             </div>
           </div>
 
           <div className="flex items-center gap-6 text-white">
-            <button onClick={() => setIsSearchOpen(true)} className="cursor-pointer hover:text-accent transition-all hover:scale-110"><Search size={20} strokeWidth={2.5} /></button>
+            <button onClick={() => setIsSearchOpen(true)} className="cursor-pointer hover:text-red-500 transition-all hover:scale-110"><Search size={20} strokeWidth={2.5} /></button>
             
-            {/* Wrapper ref untuk user modal & button */}
             <div className="relative" ref={userModalRef}>
               <button onClick={handleUserClick} className="flex items-center gap-2 cursor-pointer group">
-                <div className={`h-10 w-10 rounded-full bg-zinc-800 border ${userData ? 'border-accent' : 'border-white/20'} flex items-center justify-center overflow-hidden transition-all group-hover:border-accent group-hover:shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)]`}>
-                   {isLoadingProfile ? <Loader2 size={16} className="animate-spin text-zinc-500" /> : userData ? <span className="text-xs font-black text-accent tracking-widest">{userData.username.substring(0, 2).toUpperCase()}</span> : <User size={18} className="text-zinc-400 group-hover:text-white" />}
+                <div className={`h-10 w-10 rounded-full bg-zinc-800 border ${userData ? 'border-red-600' : 'border-white/20'} flex items-center justify-center overflow-hidden transition-all group-hover:border-red-600 group-hover:shadow-[0_0_15px_rgba(220,38,38,0.4)]`}>
+                   {isLoadingProfile ? <Loader2 size={16} className="animate-spin text-zinc-500" /> : userData ? <span className="text-xs font-black text-red-600 tracking-widest">{userData.username.substring(0, 2).toUpperCase()}</span> : <User size={18} className="text-zinc-400 group-hover:text-white" />}
                 </div>
               </button>
 
-              {/* Box Modal Dropdown (Ini yang sebelumnya hilang) */}
               <AnimatePresence>
                 {isUserModalOpen && userData && (
                   <motion.div
@@ -131,11 +130,11 @@ export default function Navbar() {
                     className="absolute right-0 top-full mt-4 w-60 origin-top-right rounded-2xl border border-white/10 bg-black/90 p-2 shadow-[0_15px_40px_rgba(0,0,0,0.8)] backdrop-blur-xl"
                   >
                     <div className="mb-2 flex flex-col items-center justify-center rounded-xl bg-white/5 p-4 text-center">
-                      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-accent/20 border border-accent/40 shadow-[0_0_15px_rgba(229,9,20,0.2)]">
-                        <span className="text-lg font-black text-accent">{userData.username.substring(0, 2).toUpperCase()}</span>
+                      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-red-600/20 border border-red-600/40 shadow-[0_0_15px_rgba(220,38,38,0.2)]">
+                        <span className="text-lg font-black text-red-600">{userData.username.substring(0, 2).toUpperCase()}</span>
                       </div>
                       <p className="w-full truncate text-sm font-bold text-white">{userData.username}</p>
-                      <p className="w-full truncate text-xs text-muted">{userData.email}</p>
+                      <p className="w-full truncate text-xs text-zinc-400">{userData.email}</p>
                       <span className="mt-2 rounded bg-white/10 px-2.5 py-1 text-[10px] font-black tracking-widest text-white uppercase">
                         {userData.role}
                       </span>
@@ -175,21 +174,21 @@ export default function Navbar() {
             <div className="flex items-center justify-between p-6 border-b border-white/10">
               <span className="italic">
                 {settings.logoUrl ? <img src={settings.logoUrl} alt={settings.siteName} className="h-7 object-contain" /> : 
-                <span className="text-xl font-black text-accent uppercase italic">{settings.siteName.split(' ')[0]}<span className="text-white">{settings.siteName.split(' ')[1] || ""}</span></span>}
+                <span className="text-xl font-black text-red-600 uppercase italic">{settings.siteName.split(' ')[0]}<span className="text-white">{settings.siteName.split(' ')[1] || ""}</span></span>}
               </span>
               <button onClick={() => setIsMobileMenuOpen(false)} className="rounded-full bg-white/10 p-2 text-white"><X size={20} /></button>
             </div>
             <div className="flex flex-col gap-6 p-8 text-lg font-bold">
-              <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="text-white">Beranda</Link>
-              <Link href="/tv" onClick={() => setIsMobileMenuOpen(false)} className="text-muted">TV Live</Link>
-              <Link href="/radio" onClick={() => setIsMobileMenuOpen(false)} className="text-muted">Radio Online</Link>
-              <Link href="/category" onClick={() => setIsMobileMenuOpen(false)} className="text-muted">Kategori</Link>
-              <Link href="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-muted text-sm pt-4 border-t border-white/5">Syarat & Kebijakan</Link>
+              <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className={pathname === "/" ? "text-white" : "text-zinc-500 hover:text-red-500"}>Beranda</Link>
+              <Link href="/tv" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/tv") ? "text-white" : "text-zinc-500 hover:text-red-500"}>TV Live</Link>
+              <Link href="/radio" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/radio") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Radio Online</Link>
+              <Link href="/category" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/category") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Kategori</Link>
+              <Link href="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-zinc-500 hover:text-white text-sm pt-4 border-t border-white/5">Syarat & Kebijakan</Link>
             </div>
             <div className="mt-auto p-8 border-t border-white/10">
               <button onClick={() => { setIsMobileMenuOpen(false); handleUserClick(); }} className="flex items-center gap-4 w-full">
-                <div className={`h-10 w-10 rounded-full bg-surface border ${userData ? 'border-accent' : 'border-white/20'} flex items-center justify-center`}>{userData ? <span className="text-xs font-black text-accent">{userData.username.substring(0, 2).toUpperCase()}</span> : <User size={20} className="text-muted" />}</div>
-                <div className="text-left"><p className="text-sm font-bold text-white">{userData ? userData.username : "Masuk Akun"}</p><p className="text-xs text-muted tracking-wider uppercase font-black">{userData ? userData.role : "Klik"}</p></div>
+                <div className={`h-10 w-10 rounded-full bg-zinc-900 border ${userData ? 'border-red-600' : 'border-white/20'} flex items-center justify-center`}>{userData ? <span className="text-xs font-black text-red-600">{userData.username.substring(0, 2).toUpperCase()}</span> : <User size={20} className="text-zinc-500" />}</div>
+                <div className="text-left"><p className="text-sm font-bold text-white">{userData ? userData.username : "Masuk Akun"}</p><p className="text-xs text-zinc-500 tracking-wider uppercase font-black">{userData ? userData.role : "Klik"}</p></div>
               </button>
             </div>
           </motion.div>
