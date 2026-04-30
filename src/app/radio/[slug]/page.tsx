@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Play, Pause, Volume2, Share2, Users, Activity, Disc, Headphones } from "lucide-react";
-import { motion } from "framer-motion";
+import { 
+  Play, Pause, Volume2, Share2, Users, Activity, 
+  Disc, Link as LinkIcon, Twitter, Facebook, MessageCircle, Check 
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 
 export default function RadioPlayerPage({ params }: { params: { slug: string } }) {
@@ -14,6 +17,11 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
   const [viewerCount, setViewerCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Share Logic State
+  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
 
   // Link Stream dari VPS lo
   const STREAM_URL = "http://141.11.25.59:8000/live";
@@ -36,6 +44,17 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
     };
     fetchRadio();
   }, [params.slug]);
+
+  // Handle klik di luar share menu untuk menutup dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
+        setIsShareMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // 3. Heartbeat Logic dengan proteksi agar tidak error 400
   useEffect(() => {
@@ -114,6 +133,32 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
     }
   };
 
+  // Fungsi Share Profesional
+  const handleShare = (platform: string) => {
+    const url = window.location.href;
+    const text = `Dengarkan siaran langsung ${radioData?.name || 'Radio'} di ${branding.siteName || 'sini'}!`;
+
+    switch (platform) {
+      case 'copy':
+        navigator.clipboard.writeText(url);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+        break;
+      case 'whatsapp':
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text + " " + url)}`, '_blank');
+        setIsShareMenuOpen(false);
+        break;
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        setIsShareMenuOpen(false);
+        break;
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        setIsShareMenuOpen(false);
+        break;
+    }
+  };
+
   if (!isLoaded) return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -189,9 +234,48 @@ export default function RadioPlayerPage({ params }: { params: { slug: string } }
             {isPlaying ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" className="ml-1" />}
           </button>
           
-          <button className="p-4 rounded-full bg-white/5 border border-white/5 text-zinc-400 hover:text-white transition-all">
-            <Share2 size={24} />
-          </button>
+          {/* Share Menu Wrapper */}
+          <div className="relative" ref={shareMenuRef}>
+            <button 
+              onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
+              className={`p-4 rounded-full border transition-all ${isShareMenuOpen ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-zinc-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Share2 size={24} />
+            </button>
+
+            {/* Dropdown Spotify Style */}
+            <AnimatePresence>
+              {isShareMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-56 bg-[#282828] border border-white/5 rounded-xl p-1.5 shadow-2xl z-50 origin-bottom"
+                >
+                  <div className="flex flex-col">
+                    <button onClick={() => handleShare('copy')} className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-white/10 transition-colors text-left group">
+                      <span className="text-sm font-bold text-white group-hover:text-white">Copy Link</span>
+                      {isCopied ? <Check size={18} className="text-green-500" /> : <LinkIcon size={18} className="text-zinc-400 group-hover:text-white" />}
+                    </button>
+                    <div className="h-[1px] bg-white/5 my-1" />
+                    <button onClick={() => handleShare('whatsapp')} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-white/10 transition-colors text-left group">
+                      <MessageCircle size={18} className="text-zinc-400 group-hover:text-green-500" />
+                      <span className="text-sm font-bold text-zinc-300 group-hover:text-white">WhatsApp</span>
+                    </button>
+                    <button onClick={() => handleShare('twitter')} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-white/10 transition-colors text-left group">
+                      <Twitter size={18} className="text-zinc-400 group-hover:text-blue-400" />
+                      <span className="text-sm font-bold text-zinc-300 group-hover:text-white">X / Twitter</span>
+                    </button>
+                    <button onClick={() => handleShare('facebook')} className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-white/10 transition-colors text-left group">
+                      <Facebook size={18} className="text-zinc-400 group-hover:text-blue-600" />
+                      <span className="text-sm font-bold text-zinc-300 group-hover:text-white">Facebook</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <div className="hidden md:flex items-center gap-4 w-52 ml-4">
             <Volume2 size={18} className="text-zinc-500" />
