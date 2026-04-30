@@ -61,6 +61,7 @@ export default function Navbar() {
     else document.body.style.overflow = "unset";
   }, [isMobileMenuOpen, isSearchOpen]);
 
+  // Handle click outside untuk User Modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userModalRef.current && !userModalRef.current.contains(event.target as Node)) {
@@ -70,6 +71,15 @@ export default function Navbar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Handle focus input saat modal search terbuka
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isSearchOpen]);
 
   const handleLogout = async () => {
     try {
@@ -82,6 +92,15 @@ export default function Navbar() {
     if (isLoadingProfile) return;
     if (userData) setIsUserModalOpen(!isUserModalOpen);
     else router.push("/login");
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    }
   };
 
   return (
@@ -104,7 +123,6 @@ export default function Navbar() {
             <div className="hidden items-center gap-7 text-sm font-bold text-gray-300 md:flex">
               <Link href="/" className={`transition-colors ${pathname === "/" ? "text-white" : "hover:text-red-500"}`}>Beranda</Link>
               <Link href="/tv" className={`transition-colors ${pathname.startsWith("/tv") ? "text-white" : "hover:text-red-500"}`}>TV Live</Link>
-              {/* REVISI: Langsung tembak ke /radio/radiortm */}
               <Link href="/radio/radiortm" className={`transition-colors ${pathname.startsWith("/radio") ? "text-white" : "hover:text-red-500"}`}>Radio Online</Link>
               <Link href="/category" className={`transition-colors ${pathname.startsWith("/category") ? "text-white" : "hover:text-red-500"}`}>Kategori</Link>
             </div>
@@ -168,6 +186,47 @@ export default function Navbar() {
         </div>
       </nav>
 
+      {/* SEARCH MODAL OVERLAY */}
+      <AnimatePresence>
+        {isSearchOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[100] flex items-start justify-center bg-black/90 backdrop-blur-md pt-32 px-6"
+          >
+            {/* Background area close modal saat diklik */}
+            <div className="absolute inset-0 z-0" onClick={() => setIsSearchOpen(false)} />
+            
+            <motion.div 
+              initial={{ y: -40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -40, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-3xl relative z-10"
+            >
+              <form onSubmit={handleSearchSubmit} className="relative group">
+                <Search size={24} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-red-500 transition-colors" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Cari saluran radio, siaran tv, dll..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-zinc-900/80 border border-white/10 rounded-full py-5 pl-16 pr-16 text-white placeholder:text-zinc-500 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition-all text-lg shadow-2xl"
+                />
+                <button type="button" onClick={() => setIsSearchOpen(false)} className="absolute right-6 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-red-500 transition-colors p-2 bg-white/5 rounded-full hover:bg-white/10">
+                  <X size={20} />
+                </button>
+              </form>
+              <div className="mt-6 text-center text-xs text-zinc-500 font-mono tracking-widest uppercase">
+                Tekan Enter untuk mencari
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed inset-0 z-[60] flex flex-col bg-black md:hidden backdrop-blur-xl">
@@ -181,7 +240,6 @@ export default function Navbar() {
             <div className="flex flex-col gap-6 p-8 text-lg font-bold">
               <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className={pathname === "/" ? "text-white" : "text-zinc-500 hover:text-red-500"}>Beranda</Link>
               <Link href="/tv" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/tv") ? "text-white" : "text-zinc-500 hover:text-red-500"}>TV Live</Link>
-              {/* REVISI: Langsung tembak ke /radio/radiortm */}
               <Link href="/radio/radiortm" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/radio") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Radio Online</Link>
               <Link href="/category" onClick={() => setIsMobileMenuOpen(false)} className={pathname.startsWith("/category") ? "text-white" : "text-zinc-500 hover:text-red-500"}>Kategori</Link>
               <Link href="/terms" onClick={() => setIsMobileMenuOpen(false)} className="text-zinc-500 hover:text-white text-sm pt-4 border-t border-white/5">Syarat & Kebijakan</Link>
