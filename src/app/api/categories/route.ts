@@ -16,16 +16,17 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
     
+    // Pastikan mengembalikan array kosong jika tidak ada data, bukan null
     return NextResponse.json({ 
       success: true, 
-      data: categories 
+      data: categories || [] 
     }, { status: 200 });
 
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json({ 
       success: false, 
-      message: "Terjadi kesalahan saat mengambil data kategori" 
+      message: "Terjadi kesalahan saat mengambil data kategori dari database" 
     }, { status: 500 });
   }
 }
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating category:", error);
     return NextResponse.json({ 
       success: false, 
-      message: "Gagal membuat kategori baru" 
+      message: "Gagal membuat kategori baru. Pastikan slug atau nama belum digunakan." 
     }, { status: 500 });
   }
 }
@@ -74,7 +75,10 @@ export async function PATCH(request: NextRequest) {
     const { id, name, slug, color, thumbnail } = body;
 
     if (!id) {
-      return NextResponse.json({ success: false, message: "ID kategori diperlukan" }, { status: 400 });
+      return NextResponse.json({ 
+        success: false, 
+        message: "ID kategori diperlukan untuk melakukan update" 
+      }, { status: 400 });
     }
 
     const updatedCategory = await prisma.category.update({
@@ -95,7 +99,10 @@ export async function PATCH(request: NextRequest) {
 
   } catch (error) {
     console.error("Error updating category:", error);
-    return NextResponse.json({ success: false, message: "Gagal memperbarui kategori" }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      message: "Gagal memperbarui kategori di database" 
+    }, { status: 500 });
   }
 }
 
@@ -106,7 +113,10 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json({ success: false, message: "ID kategori diperlukan" }, { status: 400 });
+      return NextResponse.json({ 
+        success: false, 
+        message: "ID kategori diperlukan untuk menghapus data" 
+      }, { status: 400 });
     }
 
     await prisma.category.delete({
@@ -115,14 +125,14 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: "Kategori berhasil dihapus" 
+      message: "Kategori berhasil dihapus secara permanen" 
     });
 
   } catch (error) {
     console.error("Error deleting category:", error);
     return NextResponse.json({ 
       success: false, 
-      message: "Gagal menghapus kategori. Pastikan kategori tidak sedang digunakan oleh channel lain." 
+      message: "Gagal menghapus kategori. Pastikan kategori tidak sedang digunakan oleh channel TV atau Radio manapun." 
     }, { status: 500 });
   }
 }
