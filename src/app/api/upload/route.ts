@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const forwardData = new FormData();
     forwardData.append("file", file);
 
-    // Kirim ke script receiver di VPS
+    // Kirim ke script receiver di VPS (Port 5000)
     const response = await fetch(`http://${vpsIp}:5000/upload-receiver`, {
       method: "POST",
       body: forwardData,
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const result = await response.json();
 
-    // Kembalikan URL yang diberikan oleh VPS ke Frontend
+    // Kembalikan path relatif (/uploads/...) ke Frontend
     return NextResponse.json({ 
       url: result.url 
     });

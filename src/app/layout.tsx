@@ -27,7 +27,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// 1. GENERATOR SEO DINAMIS (Pusat Branding di Browser Tab)
+// HELPER: Untuk memastikan URL mengarah ke VPS jika path-nya adalah upload
+const getAssetUrl = (path: string | null | undefined) => {
+  if (!path) return "";
+  if (path.startsWith('http')) return path;
+  const baseUrl = process.env.NEXT_PUBLIC_ASSET_URL || "http://141.11.25.59";
+  return `${baseUrl}${path}`;
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const setting = await prisma.setting.findFirst();
   const siteTitle = setting?.siteName || "Live Stream";
@@ -40,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: setting?.seoDescription || "Platform penyiaran digital eksklusif.",
     manifest: "/manifest.json",
     icons: {
-      icon: setting?.logoUrl || "/favicon.ico",
+      icon: setting?.logoUrl ? getAssetUrl(setting.logoUrl) : "/favicon.ico",
     }
   };
 }
@@ -75,9 +82,12 @@ export default async function RootLayout({
             <div className="relative z-10 flex flex-col items-center text-center p-8 animate-in zoom-in-95 duration-700">
               <ShieldAlert size={80} className="text-red-500 mb-6 animate-pulse" />
               
-              {/* BRANDING DINAMIS: Gunakan Logo Gambar jika tersedia, jika tidak gunakan Teks */}
               {logoUrl ? (
-                <img src={logoUrl} alt={siteName} className="h-16 mb-4 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
+                <img 
+                  src={getAssetUrl(logoUrl)} 
+                  alt={siteName} 
+                  className="h-16 mb-4 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
+                />
               ) : (
                 <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter text-white mb-4 drop-shadow-2xl uppercase">
                   {siteName.split(' ')[0]}<span className="text-accent">{siteName.split(' ').slice(1).join(' ')}</span>
