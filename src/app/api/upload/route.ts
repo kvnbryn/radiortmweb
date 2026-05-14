@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "No file uploaded" }, { status: 400 });
     }
 
     // Ambil IP VPS dari environment variable
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const forwardData = new FormData();
     forwardData.append("file", file);
 
-    // Kirim ke script receiver di VPS (Port 5000)
+    // Kirim ke script receiver di VPS
     const response = await fetch(`http://${vpsIp}:5000/upload-receiver`, {
       method: "POST",
       body: forwardData,
@@ -28,13 +28,14 @@ export async function POST(req: NextRequest) {
 
     const result = await response.json();
 
-    // Kembalikan path relatif (/uploads/...) ke Frontend
+    // PERBAIKAN: Tambahkan success: true agar dibaca benar oleh frontend
     return NextResponse.json({ 
+      success: true,
       url: result.url 
     });
 
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Upload failed" }, { status: 500 });
   }
 }

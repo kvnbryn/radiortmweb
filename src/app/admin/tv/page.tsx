@@ -88,14 +88,18 @@ export default function AdminTvPage() {
         method: "POST",
         body: formData,
       });
+      
       const data = await res.json();
+      
       if (data.success) {
         setCurrentChannel({ ...currentChannel, thumbnail: data.url });
       } else {
-        alert("Gagal upload gambar");
+        console.error("Upload response error:", data);
+        alert("Gagal upload gambar: " + (data.error || "Unknown Error"));
       }
     } catch (err) {
-      alert("Terjadi kesalahan saat upload");
+      console.error("Network error during upload:", err);
+      alert("Terjadi kesalahan koneksi saat upload");
     } finally {
       setIsUploading(false);
     }
